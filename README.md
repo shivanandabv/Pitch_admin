@@ -1,6 +1,6 @@
-# PitchXPO Admin — React
+# PitchXPO Admin React — Exact Theme
 
-Responsive React/Vite admin panel matching the PitchXPO theme.
+This React + Vite project is rebuilt from the supplied PitchXPO Admin HTML package. The supplied `assets/style.css` is preserved as the base visual system so typography, spacing, colors, cards, tables, forms, login and responsive behavior stay aligned with the source.
 
 ## Run
 ```bash
@@ -8,18 +8,6 @@ npm install
 npm run dev
 ```
 
-Demo login:
-- Email: admin@pitchxpo.com
-- Password: Admin@1234
+Demo login: `admin@pitchxpo.com` / `Admin@1234`
 
-Features:
-- Responsive desktop/tablet/mobile layout
-- Dashboard, Applications, Payments, Events, Types & Pricing, Admin Users
-- USD currency throughout
-- Event From Date / To Date
-- Application add/edit/view/delete modal
-- User dropdown: My Account, Change Password, Sign out
-- Logout returns to login page
-- Mobile sidebar with overlay
-- LocalStorage demo persistence
-- CSV export for payments
+USD is used throughout. Events have separate From Date and To Date fields. Data is stored in browser localStorage for the demo.

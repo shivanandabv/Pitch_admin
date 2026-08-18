@@ -1,23 +1,10 @@
-# PitchXPO Admin React — Same Theme
+# PitchXPO Admin React
+React + Vite conversion using the supplied PitchXPO theme CSS and logo.
 
-Converted from the supplied PitchXPO Admin HTML theme into a React + Vite project.
-
-## Run
+Run:
 npm install
 npm run dev
 
-## Demo login
-Email: admin@pitchxpo.com
-Password: Admin@1234
-
-## Included
-- Same supplied PitchXPO visual theme and logo
-- Login + Forgot Password demo
-- Logout returns to login
-- Dashboard
-- Applications with add/edit/view/status
-- Payments in USD
-- Events with From Date / To Date
-- Types & Pricing in USD
-- Admin Users
-- localStorage persistence
+Demo login:
+admin@pitchxpo.com
+Admin@1234

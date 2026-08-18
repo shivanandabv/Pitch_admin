@@ -1,26 +1,23 @@
-# PitchXPO Admin React
+# PitchXPO Admin React — Same Theme
 
-Fixed React + Vite project.
-
-## Fix
-The `Users` identifier collision in `src/main.jsx` was removed. The file now has a single React import and a single `Users` icon/component namespace without redeclaration.
+Converted from the supplied PitchXPO Admin HTML theme into a React + Vite project.
 
 ## Run
-```bash
 npm install
 npm run dev
-```
 
 ## Demo login
 Email: admin@pitchxpo.com
 Password: Admin@1234
 
 ## Included
-- Login / logout
+- Same supplied PitchXPO visual theme and logo
+- Login + Forgot Password demo
+- Logout returns to login
 - Dashboard
-- Applications
-- Payments (USD)
+- Applications with add/edit/view/status
+- Payments in USD
 - Events with From Date / To Date
-- Types & Pricing
+- Types & Pricing in USD
 - Admin Users
-- LocalStorage persistence
+- localStorage persistence

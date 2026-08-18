@@ -1,5 +1,5 @@
 
-const KEY='pitchxpo_admin_v3';
+const KEY='pitchxpo_admin_v4';
 const seed={
  applications:[
   {id:'PX-10248',applicant:'ABC Technologies',email:'hello@abctech.com',phone:'+91 98765 12001',type:'Raise Funds',event:'PitchXPO Conclave',amount:99,payment:'Paid',status:'New',date:'2026-08-18',note:'',documents:['Pitch Deck.pdf','Company Profile.pdf']},
@@ -37,7 +37,28 @@ const seed={
  ],
  account:{name:'Admin User',email:'admin@pitchxpo.com',phone:'+971 50 123 4567',role:'Administrator'}
 };
-function load(){try{const s=localStorage.getItem(KEY); if(s)return JSON.parse(s)}catch(e){} localStorage.setItem(KEY,JSON.stringify(seed));return JSON.parse(JSON.stringify(seed))}
+function load(){
+  const clone=()=>JSON.parse(JSON.stringify(seed));
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){
+      const saved=JSON.parse(raw);
+      const merged={...seed,...saved,
+        applications:Array.isArray(saved.applications)?saved.applications:clone().applications,
+        payments:Array.isArray(saved.payments)?saved.payments:clone().payments,
+        events:Array.isArray(saved.events)?saved.events:clone().events,
+        types:Array.isArray(saved.types)?saved.types:clone().types,
+        users:Array.isArray(saved.users)?saved.users:clone().users,
+        account:{...seed.account,...(saved.account||{})}
+      };
+      localStorage.setItem(KEY,JSON.stringify(merged));
+      return merged;
+    }
+    const fresh=clone();
+    localStorage.setItem(KEY,JSON.stringify(fresh));
+    return fresh;
+  }catch(e){ return clone(); }
+}
 let db=load();
 function save(){localStorage.setItem(KEY,JSON.stringify(db))}
 function uid(prefix){return prefix+'-'+Math.random().toString(36).slice(2,7).toUpperCase()}
@@ -135,3 +156,12 @@ initForgot=function(){__oldInitForgot();const card=document.querySelector('.forg
 
 window.addEventListener('hashchange',()=>{closeMobileMenu();init()});
 document.addEventListener('click',e=>{const w=document.querySelector('.user-wrap'),m=document.getElementById('userMenu');if(w&&m&&!w.contains(e.target))m.classList.add('hidden')});
+
+
+// React/Vite bootstrap: expose the page initializer so React can mount the admin UI reliably.
+window.pitchxpoInit = init;
+if(document.readyState === 'loading'){
+  window.addEventListener('DOMContentLoaded',()=>window.pitchxpoInit(),{once:true});
+}else{
+  window.pitchxpoInit();
+}

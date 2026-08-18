@@ -67,3 +67,5 @@
 .modal{position:relative}
 .dropdown{z-index:150}
 .actions-cell{display:flex;gap:6px;flex-wrap:wrap}
+
+.app-boot{min-height:100vh}

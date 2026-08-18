@@ -165,3 +165,20 @@ if(document.readyState === 'loading'){
 }else{
   window.pitchxpoInit();
 }
+
+// Expose the legacy UI handlers to the browser global scope.
+// The pages are rendered as HTML strings and use inline onclick/onchange handlers,
+// so Vite's ES-module scope must explicitly publish these functions.
+Object.assign(window, {
+  db,
+  closeMobileMenu, closeModal, deleteApplication, deleteEvent, deletePayment,
+  deleteType, deleteUser, downloadDocument, editApplication, exportApplications,
+  exportEvents, exportPayments, exportTypes, exportUsers, finishReset,
+  logout, markPaymentPaid, openApplicationForm, openEventForm, openMobileMenu,
+  openPaymentForm, openTypeForm, openUserForm, saveAccount, saveApplication,
+  saveEvent, savePassword, savePayment, saveType, saveUser, sendResetCode,
+  setAppTab, setApplicationStatus, toggleEvent, toggleLoginPassword,
+  toggleType, toggleUser, toggleUserMenu, verifyResetCode, viewApplication,
+  renderApplications, renderPayments, renderEvents, renderTypes, renderUsers,
+  init, initLogin, toggleLoginPassword
+});

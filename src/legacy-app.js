@@ -1,184 +1,761 @@
+import { api, ApiError, clearSession, downloadCsv, getProfile, getToken, setSession } from './api.js';
 
-const KEY='pitchxpo_admin_v4';
-const seed={
- applications:[
-  {id:'PX-10248',applicant:'ABC Technologies',email:'hello@abctech.com',phone:'+91 98765 12001',type:'Raise Funds',event:'PitchXPO Conclave',amount:99,payment:'Paid',status:'New',date:'2026-08-18',note:'',documents:['Pitch Deck.pdf','Company Profile.pdf']},
-  {id:'PX-10247',applicant:'Nova Properties',email:'contact@novaproperties.com',phone:'+91 98765 12002',type:'Showcase',event:'PitchXPO Conclave',amount:99,payment:'Paid',status:'Reviewing',date:'2026-08-17',note:'Financial documents need review.',documents:['Company Profile.pdf']},
-  {id:'PX-10246',applicant:'Northstar Capital',email:'team@northstar.com',phone:'+91 98765 12003',type:'Investor Success Story',event:'PitchXPO Conclave',amount:299,payment:'Paid',status:'Approved',date:'2026-08-16',note:'Approved by admin.',documents:['Success Story.pdf','Logo.png']},
-  {id:'PX-10245',applicant:'Vertex Labs',email:'founders@vertexlabs.com',phone:'+91 98765 12004',type:'Raise Funds',event:'PitchXPO Conclave',amount:99,payment:'Unpaid',status:'New',date:'2026-08-15',note:'',documents:['Pitch Deck.pdf']},
-  {id:'PX-10244',applicant:'GreenGrid Energy',email:'admin@greengrid.com',phone:'+91 98765 12005',type:'Showcase',event:'Innovation Summit',amount:149,payment:'Paid',status:'Approved',date:'2026-08-14',note:'',documents:['Deck.pdf','Certificate.pdf']},
-  {id:'PX-10243',applicant:'BlueOrbit AI',email:'team@blueorbit.ai',phone:'+91 98765 12006',type:'Raise Funds',event:'Innovation Summit',amount:99,payment:'Paid',status:'Rejected',date:'2026-08-13',note:'Category does not match current criteria.',documents:['Pitch Deck.pdf']},
-  {id:'PX-10242',applicant:'Aster Ventures',email:'hello@astervc.com',phone:'+91 98765 12007',type:'Investor Success Story',event:'Investor Forum',amount:299,payment:'Paid',status:'Reviewing',date:'2026-08-12',note:'',documents:['Story.pdf']},
-  {id:'PX-10241',applicant:'UrbanNest',email:'hello@urbannest.com',phone:'+91 98765 12008',type:'Showcase',event:'Investor Forum',amount:149,payment:'Paid',status:'Approved',date:'2026-08-11',note:'',documents:['Profile.pdf']}
- ],
- payments:[
-  {id:'PAY-9001',application:'PX-10248',applicant:'ABC Technologies',type:'Raise Funds',amount:99,status:'Paid',reference:'pi_8KAB1201',date:'2026-08-18'},
-  {id:'PAY-9002',application:'PX-10247',applicant:'Nova Properties',type:'Showcase',amount:99,status:'Paid',reference:'pi_8KAB1202',date:'2026-08-17'},
-  {id:'PAY-9003',application:'PX-10246',applicant:'Northstar Capital',type:'Investor Success Story',amount:299,status:'Paid',reference:'pi_8KAB1203',date:'2026-08-16'},
-  {id:'PAY-9004',application:'PX-10245',applicant:'Vertex Labs',type:'Raise Funds',amount:99,status:'Unpaid',reference:'—',date:'2026-08-15'},
-  {id:'PAY-9005',application:'PX-10244',applicant:'GreenGrid Energy',type:'Showcase',amount:149,status:'Paid',reference:'pi_8KAB1205',date:'2026-08-14'},
-  {id:'PAY-9006',application:'PX-10243',applicant:'BlueOrbit AI',type:'Raise Funds',amount:99,status:'Paid',reference:'pi_8KAB1206',date:'2026-08-13'}
- ],
- events:[
-  {id:'EV-001',name:'PitchXPO Conclave',fromDate:'2026-09-18',toDate:'2026-09-20',venue:'Expo City',status:'Open',applications:132},
-  {id:'EV-002',name:'Innovation Summit',fromDate:'2026-10-09',toDate:'2026-10-11',venue:'Dubai World Trade Centre',status:'Open',applications:74},
-  {id:'EV-003',name:'Investor Forum',fromDate:'2026-11-21',toDate:'2026-11-22',venue:'Abu Dhabi',status:'Closed',applications:42}
- ],
- types:[
-  {id:'TP-001',name:'Raise Funds',description:'For ventures seeking capital and investor access.',price:99,active:true},
-  {id:'TP-002',name:'Showcase',description:'For founders showcasing products and innovations.',price:149,active:true},
-  {id:'TP-003',name:'Investor Success Story',description:'Featured success stories and investor outcomes.',price:299,active:true}
- ],
- users:[
-  {id:'USR-001',name:'Admin User',email:'admin@pitchxpo.com',role:'Administrator',status:'Active',lastLogin:'Today, 10:32 AM'},
-  {id:'USR-002',name:'Sarah Khan',email:'sarah@pitchxpo.com',role:'Reviewer',status:'Active',lastLogin:'Today, 09:18 AM'},
-  {id:'USR-003',name:'David Mathew',email:'david@pitchxpo.com',role:'Finance',status:'Active',lastLogin:'Yesterday, 05:42 PM'},
-  {id:'USR-004',name:'Priya Shah',email:'priya@pitchxpo.com',role:'Reviewer',status:'Inactive',lastLogin:'Aug 12, 2026'}
- ],
- account:{name:'Admin User',email:'admin@pitchxpo.com',phone:'+971 50 123 4567',role:'Administrator'}
-};
-function load(){
-  const clone=()=>JSON.parse(JSON.stringify(seed));
-  try{
-    const raw=localStorage.getItem(KEY);
-    if(raw){
-      const saved=JSON.parse(raw);
-      const merged={...seed,...saved,
-        applications:Array.isArray(saved.applications)?saved.applications:clone().applications,
-        payments:Array.isArray(saved.payments)?saved.payments:clone().payments,
-        events:Array.isArray(saved.events)?saved.events:clone().events,
-        types:Array.isArray(saved.types)?saved.types:clone().types,
-        users:Array.isArray(saved.users)?saved.users:clone().users,
-        account:{...seed.account,...(saved.account||{})}
-      };
-      localStorage.setItem(KEY,JSON.stringify(merged));
-      return merged;
+function esc(v) {
+  return String(v ?? '').replace(/[&<>'"]/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]
+  ));
+}
+
+function money(v, currency = 'usd') {
+  const amount = Number(v || 0);
+  return `${currency.toUpperCase() === 'USD' ? '$' : `${currency} `}${amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function toast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toast);
+  window.__toast = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function errorMessage(err) {
+  if (err instanceof ApiError) return err.message;
+  return err?.message || 'Something went wrong.';
+}
+
+function initials(name) {
+  return String(name || 'A')
+    .split(' ')
+    .map((x) => x[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+function statusBadge(s) {
+  const c = {
+    Paid: 'paid',
+    Unpaid: 'pending',
+    Accepted: 'approved',
+    Approved: 'approved',
+    'Under Review': 'review',
+    Submitted: 'new',
+    Rejected: 'rejected',
+    Withdrawn: 'inactive',
+    Active: 'active',
+    Inactive: 'inactive',
+    Open: 'open',
+    Closed: 'closed',
+    administrator: 'approved',
+    reviewer: 'review',
+    finance: 'paid',
+  }[s] || 'new';
+  return `<span class="badge ${c}">${esc(s)}</span>`;
+}
+
+function can(permission) {
+  const role = getProfile()?.role;
+  const map = {
+    administrator: true,
+    reviewer: [
+      'dashboard',
+      'applications',
+      'applications:write',
+      'payments',
+      'export:applications',
+      'account',
+    ],
+    finance: ['dashboard', 'applications', 'payments', 'export:applications', 'export:payments', 'account'],
+  };
+  if (role === 'administrator') return true;
+  return (map[role] || []).includes(permission);
+}
+
+function parseHash() {
+  const raw = (location.hash || '').replace(/^#/, '');
+  const [page, query] = raw.split('?');
+  return { page: page || '', params: new URLSearchParams(query || '') };
+}
+
+function qs(obj) {
+  const params = new URLSearchParams();
+  Object.entries(obj).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && String(v).trim() !== '') params.set(k, String(v));
+  });
+  const s = params.toString();
+  return s ? `?${s}` : '';
+}
+
+function nav(active) {
+  const items = [
+    ['dashboard', '▦', 'Dashboard', '#dashboard', 'dashboard'],
+    ['applications', '▤', 'Applications', '#applications', 'applications'],
+    ['payments', '▣', 'Payments', '#payments', 'payments'],
+    ['events', '◫', 'Events', '#events', 'settings'],
+    ['types', '◇', 'Types & Pricing', '#types_pricing', 'settings'],
+    ['users', '♙', 'Admin Users', '#admin_users', 'settings'],
+  ].filter((i) => can(i[4] === 'settings' ? 'settings' : i[4]));
+  return `<aside class="sidebar" id="sidebar"><div class="brand"><img src="/assets/pitch-logo.png" alt="Pitch"></div><nav class="menu">${items
+    .map(
+      (i) =>
+        `<a class="${active === i[0] ? 'active' : ''}" href="${i[3]}" onclick="closeMobileMenu()"><span class="ico">${i[1]}</span><span>${i[2]}</span></a>`,
+    )
+    .join('')}</nav><div class="sidebar-bottom"><strong>PitchXPO</strong>Admin Panel</div></aside><div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>`;
+}
+
+function shell(active, content) {
+  const a = getProfile() || { name: 'Admin', role: 'administrator' };
+  return `<div class="shell">${nav(active)}<main class="main"><header class="topbar"><div class="top-left"><button class="mobile-menu-btn" aria-label="Open menu" onclick="openMobileMenu()">☰</button><div class="top-title">PitchXPO Admin</div></div><div class="user-wrap"><div class="user" onclick="toggleUserMenu()"><div class="avatar">${initials(a.name)}</div><div class="u"><strong>${esc(a.name)}</strong><span>${esc(a.role)}</span></div><span>⌄</span></div><div id="userMenu" class="dropdown hidden"><a href="#my_account" onclick="toggleUserMenu()">My Account</a><a href="#change_password" onclick="toggleUserMenu()">Change Password</a><button class="logout" onclick="logout()">Sign out</button></div></div></header>${content}</main></div><div class="modal-backdrop" id="modal"></div><div class="toast"></div>`;
+}
+
+function layout(title, active, inner) {
+  document.title = `PitchXPO Admin — ${title}`;
+  document.getElementById('root').innerHTML = shell(active, inner);
+}
+
+function toggleUserMenu() {
+  document.getElementById('userMenu')?.classList.toggle('hidden');
+}
+function openMobileMenu() {
+  document.getElementById('sidebar')?.classList.add('mobile-open');
+  document.getElementById('mobileOverlay')?.classList.add('show');
+}
+function closeMobileMenu() {
+  document.getElementById('sidebar')?.classList.remove('mobile-open');
+  document.getElementById('mobileOverlay')?.classList.remove('show');
+}
+function closeModal() {
+  document.getElementById('modal')?.classList.remove('show');
+}
+function openModal(title, body, foot = '') {
+  const m = document.getElementById('modal');
+  m.innerHTML = `<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="close" onclick="closeModal()">×</button></div><div class="modal-body">${body}</div>${foot ? `<div class="modal-foot">${foot}</div>` : ''}</div>`;
+  m.classList.add('show');
+  m.onclick = (e) => {
+    if (e.target === m) closeModal();
+  };
+}
+
+function logout() {
+  clearSession();
+  location.hash = '#login';
+  initLogin();
+}
+
+async function initDashboard() {
+  try {
+    const { dashboard } = await api.dashboard();
+    const t = dashboard.totals;
+    const recent = dashboard.recentPaid || [];
+    const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Overview</div><h1>Dashboard</h1><div class="sub">Live application and payment overview from PostgreSQL</div></div></div>
+      <div class="cards">
+        <div class="card"><div class="card-label">Total Applications</div><div class="metric">${t.submissions}</div></div>
+        <div class="card"><div class="card-label">Pending</div><div class="metric">${t.pending}</div><div class="metric-note">Submitted / under review</div></div>
+        <div class="card"><div class="card-label">Approved</div><div class="metric">${t.approved}</div><div class="metric-note">Accepted</div></div>
+        <div class="card"><div class="card-label">Rejected</div><div class="metric">${t.rejected}</div></div>
+      </div>
+      <div class="cards" style="grid-template-columns:repeat(2,1fr)">
+        <div class="card"><div class="card-label">Paid</div><div class="metric">${t.paid}</div><div class="metric-note">Stripe-verified payments</div></div>
+        <div class="card"><div class="card-label">Collected</div><div class="metric">${money(dashboard.revenue.paidTotal, dashboard.revenue.currency)}</div></div>
+      </div>
+      <div class="panel table-card"><div class="panel-pad"><div class="section-title"><h2>Recent paid applications</h2></div>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant</th><th>Package</th><th>Amount</th><th>Payment</th><th>Status</th></tr></thead><tbody>
+      ${
+        recent
+          .map(
+            (x) =>
+              `<tr><td class="strong">${esc(x.submissionId)}</td><td>${esc(x.startup?.name || x.founder?.name)}</td><td>${esc(x.package?.type)}</td><td>${money(x.package?.amount, x.package?.currency)}</td><td>${statusBadge(x.paymentStatus)}</td><td>${statusBadge(x.applicationStatus)}</td></tr>`,
+          )
+          .join('') || `<tr><td colspan="6"><div class="empty">No paid applications yet.</div></td></tr>`
+      }
+      </tbody></table></div></div></div></section>`;
+    layout('Dashboard', 'dashboard', content);
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function initApplications() {
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Manage</div><h1>Applications</h1><div class="sub">PostgreSQL records — approve, reject, note, and download Excel reports</div></div>
+    <div class="actions">${can('export:applications') ? '<button class="secondary" onclick="exportApplications()">Download Report</button>' : ''}</div></div>
+    <div class="panel"><div class="toolbar">
+      <input id="appSearch" class="input search" placeholder="Search name, ID or email...">
+      <select id="appStatus"><option value="">All application status</option><option>Submitted</option><option>Under Review</option><option>Accepted</option><option>Rejected</option><option>Withdrawn</option></select>
+      <select id="payStatus"><option value="">All payment status</option><option>Paid</option><option>Unpaid</option></select>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant</th><th>Package</th><th>Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead><tbody id="appRows"></tbody></table></div>
+    <div class="foot"><span id="appCount"></span><div class="actions"><button class="mini" id="prevPage">Prev</button><button class="mini" id="nextPage">Next</button></div></div></div></section>`;
+  layout('Applications', 'applications', content);
+  window.__appPage = 1;
+  const reload = () => renderApplications();
+  document.getElementById('appSearch').oninput = () => {
+    clearTimeout(window.__appSearch);
+    window.__appSearch = setTimeout(reload, 300);
+  };
+  document.getElementById('appStatus').onchange = reload;
+  document.getElementById('payStatus').onchange = reload;
+  document.getElementById('prevPage').onclick = () => {
+    window.__appPage = Math.max(1, (window.__appPage || 1) - 1);
+    reload();
+  };
+  document.getElementById('nextPage').onclick = () => {
+    window.__appPage = (window.__appPage || 1) + 1;
+    reload();
+  };
+  await renderApplications();
+}
+
+async function renderApplications() {
+  const q = document.getElementById('appSearch')?.value || '';
+  const status = document.getElementById('appStatus')?.value || '';
+  const paymentStatus = document.getElementById('payStatus')?.value || '';
+  const page = window.__appPage || 1;
+  try {
+    const data = await api.submissions(
+      qs({ q, status, paymentStatus, page, limit: 20 }),
+    );
+    window.__appPage = data.page;
+    const el = document.getElementById('appRows');
+    if (!el) return;
+    el.innerHTML =
+      data.submissions
+        .map(
+          (x) =>
+            `<tr><td class="strong">${esc(x.submissionId)}</td><td><div class="biz"><strong>${esc(x.startup?.name || x.founder?.name)}</strong><span>${esc(x.founder?.email)}</span></div></td><td>${esc(x.package?.type)}</td><td class="strong">${money(x.package?.amount, x.package?.currency)}</td><td>${statusBadge(x.paymentStatus)}</td><td>${statusBadge(x.applicationStatus)}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="viewApplication('${esc(x.submissionId)}')">View</button>${can('export:applications') ? `<button class="mini" onclick="exportApplicationReport('${esc(x.submissionId)}')">Download Report</button>` : ''}</div></td></tr>`,
+        )
+        .join('') || `<tr><td colspan="7"><div class="empty">No applications found.</div></td></tr>`;
+    document.getElementById('appCount').textContent = `Page ${data.page} of ${data.totalPages} · ${data.total} application(s)`;
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function viewApplication(id) {
+  try {
+    const { submission: x } = await api.submission(id);
+    const write = can('applications:write');
+    const notes = (x.notes || [])
+      .map((n) => `<div class="note-box"><strong>${esc(n.admin?.name || 'Admin')}</strong> · ${esc(n.createdAt)}<br>${esc(n.body)}</div>`)
+      .join('') || '<div class="note-box">No notes yet.</div>';
+    const history = (x.history || [])
+      .map((h) => `<div class="list-row"><strong>${esc(h.fromStatus)} → ${esc(h.toStatus)}</strong><div class="right muted">${esc(h.source)}</div><div class="right muted">${esc(h.createdAt)}</div></div>`)
+      .join('') || '<div class="muted small">No status history yet.</div>';
+    openModal(
+      `Application ${esc(x.submissionId)}`,
+      `<div class="detail-grid">
+        <div class="detail"><span>Applicant</span><strong>${esc(x.founder?.name)}</strong></div>
+        <div class="detail"><span>Business</span><strong>${esc(x.startup?.name || '—')}</strong></div>
+        <div class="detail"><span>Email</span><strong>${esc(x.founder?.email)}</strong></div>
+        <div class="detail"><span>Phone</span><strong>${esc(x.founder?.phone || '—')}</strong></div>
+        <div class="detail"><span>Package</span><strong>${esc(x.package?.type)}</strong></div>
+        <div class="detail"><span>Amount</span><strong>${money(x.package?.amount, x.package?.currency)}</strong></div>
+        <div class="detail"><span>Payment</span>${statusBadge(x.paymentStatus)}</div>
+        <div class="detail"><span>Application status</span>${statusBadge(x.applicationStatus)}</div>
+        <div class="detail"><span>Reference</span><strong>${esc(x.payment?.applicationReference || '—')}</strong></div>
+        <div class="detail"><span>Receipt</span><strong>${esc(x.payment?.paymentReceipt || '—')}</strong></div>
+        <div class="detail"><span>Stripe PI</span><strong>${esc(x.payment?.stripePaymentIntentId || '—')}</strong></div>
+        <div class="detail"><span>Paid at</span><strong>${esc(x.payment?.paidAt || '—')}</strong></div>
+      </div>
+      <div class="section-title" style="margin-top:16px"><h2>History</h2></div>${history}
+      <div class="section-title" style="margin-top:16px"><h2>Internal notes</h2></div>${notes}
+      ${
+        write
+          ? `<div class="field full" style="margin-top:12px"><label>Add note</label><textarea id="noteBody" placeholder="Visible to operations and accounts only"></textarea></div>`
+          : ''
+      }`,
+      `${can('export:applications') ? `<button class="secondary" onclick="exportApplicationReport('${esc(x.submissionId)}')">Download Report</button>` : ''}${write ? `<button class="secondary" onclick="addNote('${esc(x.submissionId)}')">Save note</button><button class="primary" onclick="setApplicationStatus('${esc(x.submissionId)}','Under Review')">Under Review</button><button class="primary" onclick="setApplicationStatus('${esc(x.submissionId)}','Accepted')">Accept</button><button class="danger" onclick="setApplicationStatus('${esc(x.submissionId)}','Rejected')">Reject</button>` : ''}<button class="secondary" onclick="closeModal()">Close</button>`,
+    );
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function addNote(id) {
+  const body = document.getElementById('noteBody')?.value || '';
+  try {
+    await api.addNote(id, body);
+    toast('Note saved');
+    await viewApplication(id);
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function setApplicationStatus(id, status) {
+  try {
+    await api.updateStatus(id, status);
+    toast(`Marked ${status}`);
+    closeModal();
+    await renderApplications();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function exportApplications() {
+  try {
+    const query = qs({
+      q: document.getElementById('appSearch')?.value,
+      status: document.getElementById('appStatus')?.value,
+      paymentStatus: document.getElementById('payStatus')?.value,
+    });
+    await downloadCsv(`/api/admin/export/applications${query}`, 'pitchxpo_applications.csv');
+    toast('Application report downloaded. Open it in Excel.');
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function exportApplicationReport(id) {
+  try {
+    await downloadCsv(
+      `/api/admin/export/applications/${encodeURIComponent(id)}`,
+      `pitchxpo_application_${id}.csv`,
+    );
+    toast('Application report downloaded. Open it in Excel.');
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function initPayments() {
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Finance</div><h1>Payments</h1><div class="sub">Stripe-backed records only. Admins cannot mark a payment as Paid.</div></div>
+    <div class="actions">${can('export:payments') ? '<button class="secondary" onclick="exportPayments()">Download Excel</button>' : ''}</div></div>
+    <div class="panel"><div class="toolbar">
+      <input id="paySearch" class="input search" placeholder="Search applicant, ID or reference...">
+      <select id="payFilter"><option value="">All</option><option>Paid</option><option>Unpaid</option></select>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Submission</th><th>Applicant</th><th>Amount</th><th>Status</th><th>Reference</th><th>Receipt</th><th>Paid at</th></tr></thead><tbody id="payRows"></tbody></table></div>
+    <div class="foot"><span id="payCount"></span></div></div></section>`;
+  layout('Payments', 'payments', content);
+  const reload = () => renderPayments();
+  document.getElementById('paySearch').oninput = () => {
+    clearTimeout(window.__paySearch);
+    window.__paySearch = setTimeout(reload, 300);
+  };
+  document.getElementById('payFilter').onchange = reload;
+  await renderPayments();
+}
+
+async function renderPayments() {
+  try {
+    const data = await api.payments(
+      qs({
+        q: document.getElementById('paySearch')?.value,
+        paymentStatus: document.getElementById('payFilter')?.value,
+        limit: 50,
+      }),
+    );
+    const el = document.getElementById('payRows');
+    el.innerHTML =
+      data.payments
+        .map(
+          (x) =>
+            `<tr><td class="strong">${esc(x.submissionId)}</td><td>${esc(x.applicant)}<div class="muted small">${esc(x.email)}</div></td><td class="strong">${money(x.amount, x.currency)}</td><td>${statusBadge(x.paymentStatus)}</td><td class="small">${esc(x.stripePaymentIntentId || x.applicationReference || '—')}</td><td class="small">${esc(x.paymentReceipt || '—')}</td><td>${esc(x.paidAt || '—')}</td></tr>`,
+        )
+        .join('') || `<tr><td colspan="7"><div class="empty">No payment records.</div></td></tr>`;
+    document.getElementById('payCount').textContent = `${data.total} record(s)`;
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function exportPayments() {
+  try {
+    await downloadCsv('/api/admin/export/payments', 'pitchxpo_payments.csv');
+    toast('Excel-compatible CSV downloaded');
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function initEvents() {
+  if (!can('settings')) return initDashboard();
+  const { events } = await api.events();
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1><div class="sub">Conclave dates and venues</div></div>
+    <div class="actions"><button class="primary" onclick="openEventForm()">+ Add Event</button></div></div>
+    <div class="panel"><div class="table-wrap"><table><thead><tr><th>Event</th><th>From</th><th>To</th><th>Venue</th><th>Applications</th><th>Status</th><th></th></tr></thead><tbody>
+    ${
+      events
+        .map(
+          (x) =>
+            `<tr><td class="strong">${esc(x.name)}</td><td>${esc(String(x.fromDate).slice(0, 10))}</td><td>${esc(String(x.toDate).slice(0, 10))}</td><td>${esc(x.venue)}</td><td>${x.applications}</td><td>${statusBadge(x.status)}</td><td><button class="mini" onclick='openEventForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeEvent('${x.id}')">Delete</button></td></tr>`,
+        )
+        .join('') || `<tr><td colspan="7"><div class="empty">No events yet.</div></td></tr>`
     }
-    const fresh=clone();
-    localStorage.setItem(KEY,JSON.stringify(fresh));
-    return fresh;
-  }catch(e){ return clone(); }
+    </tbody></table></div></div></section>`;
+  layout('Events', 'events', content);
 }
-let db=load();
-function save(){localStorage.setItem(KEY,JSON.stringify(db))}
-function uid(prefix){return prefix+'-'+Math.random().toString(36).slice(2,7).toUpperCase()}
-function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function money(v){return '$'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function statusBadge(s){const c={Paid:'paid',Unpaid:'pending',Approved:'approved',Reviewing:'review',New:'new',Rejected:'rejected',Active:'active',Inactive:'inactive',Open:'open',Closed:'closed',Failed:'failed',Refunded:'refunded'}[s]||'new';return `<span class="badge ${c}">${esc(s)}</span>`}
-function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t)}t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),2400)}
-function csvDownload(filename,rows){if(!rows.length)return toast('Nothing to export');const keys=Object.keys(rows[0]);const lines=[keys.join(','),...rows.map(r=>keys.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(','))];const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);toast('Excel-compatible CSV downloaded')}
-function downloadText(filename,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=filename;a.click();URL.revokeObjectURL(a.href);toast('Document downloaded')}
-function initials(name){return String(name||'A').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase()}
-function nav(active){const items=[['dashboard','▦','Dashboard','#dashboard'],['applications','▤','Applications','#applications'],['payments','▣','Payments','#payments'],['events','◫','Events','#events'],['types','◇','Types & Pricing','#types_pricing'],['users','♙','Admin Users','#admin_users']];return `<aside class="sidebar" id="sidebar"><div class="brand"><img src="assets/pitch-logo.png" alt="Pitch"></div><nav class="menu">${items.map(i=>`<a class="${active===i[0]?'active':''}" href="${i[3]}" onclick="closeMobileMenu()"><span class="ico">${i[1]}</span><span>${i[2]}</span></a>`).join('')}</nav><div class="sidebar-bottom"><strong>PitchXPO</strong>Admin Panel</div></aside><div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>`}
-function shell(active,title,content){const a=db.account;return `<div class="shell">${nav(active)}<main class="main"><header class="topbar"><div class="top-left"><button class="mobile-menu-btn" aria-label="Open menu" onclick="openMobileMenu()">☰</button><div class="top-title">PitchXPO Admin</div></div><div class="user-wrap"><div class="user" onclick="toggleUserMenu()"><div class="avatar">${initials(a.name)}</div><div class="u"><strong>${esc(a.name)}</strong><span>${esc(a.role)}</span></div><span>⌄</span></div><div id="userMenu" class="dropdown hidden"><a href="#my_account" onclick="toggleUserMenu()">My Account</a><a href="#change_password" onclick="toggleUserMenu()">Change Password</a><button class="logout" onclick="logout()">Sign out</button></div></div></header>${content}</main></div><div class="modal-backdrop" id="modal"></div><div class="toast"></div>`}
-function toggleUserMenu(){document.getElementById('userMenu')?.classList.toggle('hidden')}
-function logout(){localStorage.removeItem('pitchxpo_demo_session');location.hash='#login';initLogin()}
-function openModal(title,body,foot=''){const m=document.getElementById('modal');m.innerHTML=`<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="close" onclick="closeModal()">×</button></div><div class="modal-body">${body}</div>${foot?`<div class="modal-foot">${foot}</div>`:''}</div>`;m.classList.add('show');m.onclick=e=>{if(e.target===m)closeModal()}}
-function closeModal(){document.getElementById('modal')?.classList.remove('show')}
-function openMobileMenu(){document.getElementById('sidebar')?.classList.add('mobile-open');document.getElementById('mobileOverlay')?.classList.add('show')}
-function closeMobileMenu(){document.getElementById('sidebar')?.classList.remove('mobile-open');document.getElementById('mobileOverlay')?.classList.remove('show')}
-function layout(title,active,inner){document.title='PitchXPO Admin — '+title;document.getElementById('root').innerHTML=shell(active, title, inner);}
-function initDashboard(){
- const total=db.applications.length,pending=db.applications.filter(x=>['New','Reviewing'].includes(x.status)).length,approved=db.applications.filter(x=>x.status==='Approved').length,paid=db.payments.filter(x=>x.status==='Paid').reduce((s,x)=>s+Number(x.amount),0);
- const byType={};db.applications.forEach(x=>byType[x.type]=(byType[x.type]||0)+1);
- const status=['New','Reviewing','Approved','Rejected'].map(s=>[s,db.applications.filter(x=>x.status===s).length]);
- const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Overview</div><h1>Dashboard</h1><div class="sub">Application and payment overview</div></div><div class="actions"><a class="secondary" href="#payments" style="text-decoration:none">View Payments</a><a class="primary" href="#applications" style="text-decoration:none">View Applications</a></div></div><div class="cards"><div class="card"><div class="card-label">Total Applications</div><div class="metric">${total}</div><div class="metric-note">All application types</div></div><div class="card"><div class="card-label">New / Pending</div><div class="metric">${pending}</div><div class="metric-note"><span class="dot"></span>Needs review</div></div><div class="card"><div class="card-label">Approved</div><div class="metric">${approved}</div><div class="metric-note">Validated applications</div></div><div class="card"><div class="card-label">Total Collected</div><div class="metric">${money(paid)}</div><div class="metric-note">Successful payments</div></div></div><div class="grid2"><div class="panel panel-pad"><div class="section-title"><h2>Applications by Type</h2><a href="#types_pricing">Manage types →</a></div>${Object.entries(byType).map(([k,v])=>`<div class="list-row"><strong>${esc(k)}</strong><div class="right">${v}</div><div class="right muted">${money(db.applications.filter(x=>x.type===k).reduce((s,x)=>s+x.amount,0))}</div></div>`).join('')}</div><div class="panel panel-pad"><div class="section-title"><h2>Quick Status</h2><a href="#applications">Applications →</a></div>${status.map(([s,n])=>`<div class="list-row"><strong>${s}</strong><div class="right">${n}</div><div class="right muted">${total?((n/total)*100).toFixed(1):0}%</div></div>`).join('')}</div></div><div class="panel table-card"><div class="panel-pad"><div class="section-title"><h2>Recent Applications</h2><a href="#applications">View all applications →</a></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant / Business</th><th>Type</th><th>Event</th><th>Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead><tbody>${db.applications.slice(0,6).map(x=>`<tr><td class="strong">${x.id}</td><td><div class="biz"><strong>${esc(x.applicant)}</strong><span>${esc(x.email)}</span></div></td><td>${esc(x.type)}</td><td>${esc(x.event)}</td><td class="strong">${money(x.amount)}</td><td>${statusBadge(x.payment)}</td><td>${statusBadge(x.status)}</td><td><button class="mini primary-mini" onclick="viewApplication('${x.id}')">View</button></td></tr>`).join('')}</tbody></table></div></div></div></section>`;layout('Dashboard','dashboard',content);}
-function applicationModal(id){const x=db.applications.find(a=>a.id===id);if(!x)return;openModal(`Application ${x.id}`,`<div class="detail-grid"><div class="detail"><span>Applicant</span><strong>${esc(x.applicant)}</strong></div><div class="detail"><span>Type</span><strong>${esc(x.type)}</strong></div><div class="detail"><span>Email</span><strong>${esc(x.email)}</strong></div><div class="detail"><span>Phone</span><strong>${esc(x.phone)}</strong></div><div class="detail"><span>Event</span><strong>${esc(x.event)}</strong></div><div class="detail"><span>Amount</span><strong>${money(x.amount)}</strong></div><div class="detail"><span>Payment</span>${statusBadge(x.payment)}</div><div class="detail"><span>Status</span>${statusBadge(x.status)}</div></div><div class="note-box"><strong>Admin Note</strong><br>${esc(x.note||'No note added yet.')}</div><div class="doc-list"><strong class="small">Documents</strong>${(x.documents||[]).map(d=>`<div class="doc"><span>📄 ${esc(d)}</span><button class="mini primary-mini" onclick="downloadDocument('${x.id}','${encodeURIComponent(d)}')">Download</button></div>`).join('')}</div>`, `<button class="secondary" onclick="closeModal()">Close</button><button class="primary" onclick="editApplication('${x.id}')">Edit</button><button class="primary" onclick="setApplicationStatus('${x.id}','Approved')">Approve</button><button class="danger" onclick="setApplicationStatus('${x.id}','Rejected')">Reject</button>`)}
-function viewApplication(id){applicationModal(id)}
-function downloadDocument(id,name){const x=db.applications.find(a=>a.id===id);downloadText(name.replace(/%20/g,'_'),`PitchXPO demo document\nApplication: ${id}\nApplicant: ${x?.applicant||''}\nDocument: ${decodeURIComponent(name)}`)}
-function setApplicationStatus(id,status){const x=db.applications.find(a=>a.id===id);if(!x)return;x.status=status;save();closeModal();toast(`Application ${id} marked ${status}`);initApplications()}
-function editApplication(id){const x=db.applications.find(a=>a.id===id);openApplicationForm(x)}
-function openApplicationForm(x={}){const edit=!!x.id;openModal(edit?'Edit Application':'Add Application',`<form id="appForm" class="form-grid"><div class="field"><label>Applicant / Business</label><input class="input" name="applicant" value="${esc(x.applicant)}" required></div><div class="field"><label>Email</label><input class="input" type="email" name="email" value="${esc(x.email)}" required></div><div class="field"><label>Phone</label><input class="input" name="phone" value="${esc(x.phone)}"></div><div class="field"><label>Type</label><select name="type">${db.types.map(t=>`<option ${x.type===t.name?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div><div class="field"><label>Event</label><select name="event">${db.events.map(e=>`<option ${x.event===e.name?'selected':''}>${esc(e.name)}</option>`).join('')}</select></div><div class="field"><label>Amount</label><input class="input" type="number" min="0" name="amount" value="${x.amount??99}" required></div><div class="field"><label>Payment</label><select name="payment"><option ${x.payment==='Paid'?'selected':''}>Paid</option><option ${x.payment==='Unpaid'?'selected':''}>Unpaid</option></select></div><div class="field"><label>Status</label><select name="status"><option ${x.status==='New'?'selected':''}>New</option><option ${x.status==='Reviewing'?'selected':''}>Reviewing</option><option ${x.status==='Approved'?'selected':''}>Approved</option><option ${x.status==='Rejected'?'selected':''}>Rejected</option></select></div><div class="field full"><label>Admin Note</label><textarea name="note">${esc(x.note)}</textarea></div></form>`, `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveApplication(${edit?`'${x.id}'`:'null'})">Save Application</button>`)}
-function saveApplication(id){const f=document.getElementById('appForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));o.amount=Number(o.amount);if(id){Object.assign(db.applications.find(x=>x.id===id),o)}else{const newId=uid('PX');db.applications.unshift({...o,id:newId,date:new Date().toISOString().slice(0,10),documents:['Application Form.pdf']});db.payments.unshift({id:uid('PAY'),application:newId,applicant:o.applicant,type:o.type,amount:o.amount,status:o.payment,reference:o.payment==='Paid'?uid('pi').toLowerCase():'—',date:new Date().toISOString().slice(0,10)})}save();closeModal();toast('Application saved');initApplications()}
-function initApplications(){const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Manage</div><h1>Applications</h1><div class="sub">Review, update and manage all applications</div></div><div class="actions"><button class="secondary" onclick="exportApplications()">Download Excel</button><button class="primary" onclick="openApplicationForm()">+ Add Application</button></div></div><div class="panel"><div class="toolbar"><input id="appSearch" class="input search" placeholder="Search applicant, ID or email..." oninput="renderApplications()"><select id="appType" onchange="renderApplications()"><option value="">All Types</option>${db.types.map(t=>`<option>${esc(t.name)}</option>`).join('')}</select><select id="appStatus" onchange="renderApplications()"><option value="">All Status</option><option>New</option><option>Reviewing</option><option>Approved</option><option>Rejected</option></select></div><div class="tabs" style="padding:14px 18px;border-bottom:1px solid var(--line)"><button class="tab active" onclick="setAppTab(this,'')">All <span class="count">${db.applications.length}</span></button><button class="tab" onclick="setAppTab(this,'New')">New <span class="count">${db.applications.filter(x=>x.status==='New').length}</span></button><button class="tab" onclick="setAppTab(this,'Reviewing')">Reviewing <span class="count">${db.applications.filter(x=>x.status==='Reviewing').length}</span></button><button class="tab" onclick="setAppTab(this,'Approved')">Approved <span class="count">${db.applications.filter(x=>x.status==='Approved').length}</span></button><button class="tab" onclick="setAppTab(this,'Rejected')">Rejected <span class="count">${db.applications.filter(x=>x.status==='Rejected').length}</span></button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant / Business</th><th>Type</th><th>Event</th><th>Amount</th><th>Payment</th><th>Status</th><th>Actions</th></tr></thead><tbody id="appRows"></tbody></table></div><div class="foot"><span id="appCount"></span><span>Local demo data • changes are saved in this browser</span></div></div></section>`;layout('Applications','applications',content);window.__appTab='';renderApplications()}
-function setAppTab(btn,v){document.querySelectorAll('.tabs .tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');window.__appTab=v;renderApplications()}
-function renderApplications(){const q=(document.getElementById('appSearch')?.value||'').toLowerCase(),type=document.getElementById('appType')?.value||'',status=document.getElementById('appStatus')?.value||'';let rows=db.applications.filter(x=>(!q||[x.id,x.applicant,x.email].join(' ').toLowerCase().includes(q))&&(!type||x.type===type)&&(!status||x.status===status)&&(!window.__appTab||x.status===window.__appTab));const el=document.getElementById('appRows');if(!el)return;el.innerHTML=rows.map(x=>`<tr><td class="strong">${x.id}</td><td><div class="biz"><strong>${esc(x.applicant)}</strong><span>${esc(x.email)}</span></div></td><td>${esc(x.type)}</td><td>${esc(x.event)}</td><td class="strong">${money(x.amount)}</td><td>${statusBadge(x.payment)}</td><td>${statusBadge(x.status)}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="viewApplication('${x.id}')">View</button><button class="mini" onclick="editApplication('${x.id}')">Edit</button><button class="mini danger-mini" onclick="deleteApplication('${x.id}')">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="8"><div class="empty">No applications found.</div></td></tr>`;document.getElementById('appCount').textContent=`${rows.length} application(s)`}
-function deleteApplication(id){if(!confirm('Delete this application?'))return;db.applications=db.applications.filter(x=>x.id!==id);db.payments=db.payments.filter(x=>x.application!==id);save();toast('Application deleted');initApplications()}
-function exportApplications(){csvDownload('pitchxpo_applications.csv',db.applications.map(({documents,...x})=>x))}
-function openPaymentForm(x={}){const edit=!!x.id;openModal(edit?'Edit Payment':'Add Payment',`<form id="payForm" class="form-grid"><div class="field"><label>Application</label><select name="application">${db.applications.map(a=>`<option value="${a.id}" ${x.application===a.id?'selected':''}>${a.id} — ${esc(a.applicant)}</option>`).join('')}</select></div><div class="field"><label>Applicant</label><input class="input" name="applicant" value="${esc(x.applicant)}" required></div><div class="field"><label>Type</label><input class="input" name="type" value="${esc(x.type)}" required></div><div class="field"><label>Amount</label><input class="input" type="number" name="amount" value="${x.amount??99}" required></div><div class="field"><label>Status</label><select name="status"><option ${x.status==='Paid'?'selected':''}>Paid</option><option ${x.status==='Unpaid'?'selected':''}>Unpaid</option><option ${x.status==='Failed'?'selected':''}>Failed</option><option ${x.status==='Refunded'?'selected':''}>Refunded</option></select></div><div class="field"><label>Payment Reference</label><input class="input" name="reference" value="${esc(x.reference==='—'?'':x.reference)}"></div></form>`, `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="savePayment(${edit?`'${x.id}'`:'null'})">Save Payment</button>`)}
-function savePayment(id){const f=document.getElementById('payForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));o.amount=Number(o.amount);if(id)Object.assign(db.payments.find(x=>x.id===id),o);else db.payments.unshift({...o,id:uid('PAY'),date:new Date().toISOString().slice(0,10)});const app=db.applications.find(a=>a.id===o.application);if(app){app.payment=o.status==='Paid'?'Paid':'Unpaid';app.amount=o.amount}save();closeModal();toast('Payment saved');initPayments()}
-function initPayments(){const paid=db.payments.filter(x=>x.status==='Paid').reduce((s,x)=>s+x.amount,0),unpaid=db.payments.filter(x=>x.status==='Unpaid').reduce((s,x)=>s+x.amount,0);const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Finance</div><h1>Payments</h1><div class="sub">Track payment status, amounts and references</div></div><div class="actions"><button class="secondary" onclick="exportPayments()">Download Excel</button><button class="primary" onclick="openPaymentForm()">+ Add Payment</button></div></div><div class="cards"><div class="card"><div class="card-label">Paid Transactions</div><div class="metric">${db.payments.filter(x=>x.status==='Paid').length}</div></div><div class="card"><div class="card-label">Collected</div><div class="metric">${money(paid)}</div></div><div class="card"><div class="card-label">Unpaid</div><div class="metric">${db.payments.filter(x=>x.status==='Unpaid').length}</div></div><div class="card"><div class="card-label">Outstanding</div><div class="metric">${money(unpaid)}</div></div></div><div class="panel"><div class="toolbar"><input id="paySearch" class="input search" placeholder="Search applicant, payment ID or reference..." oninput="renderPayments()"><select id="payStatus" onchange="renderPayments()"><option value="">All Status</option><option>Paid</option><option>Unpaid</option><option>Failed</option><option>Refunded</option></select></div><div class="table-wrap"><table><thead><tr><th>Payment ID</th><th>Applicant</th><th>Type</th><th>Amount</th><th>Status</th><th>Reference</th><th>Date</th><th>Actions</th></tr></thead><tbody id="payRows"></tbody></table></div><div class="foot"><span id="payCount"></span><span>Excel export is CSV format and opens directly in Excel.</span></div></div></section>`;layout('Payments','payments',content);renderPayments()}
-function renderPayments(){const q=(document.getElementById('paySearch')?.value||'').toLowerCase(),s=document.getElementById('payStatus')?.value||'';const rows=db.payments.filter(x=>(!q||[x.id,x.applicant,x.reference].join(' ').toLowerCase().includes(q))&&(!s||x.status===s));const el=document.getElementById('payRows');if(!el)return;el.innerHTML=rows.map(x=>`<tr><td class="strong">${x.id}</td><td><div class="biz"><strong>${esc(x.applicant)}</strong><span>${esc(x.application)}</span></div></td><td>${esc(x.type)}</td><td class="strong">${money(x.amount)}</td><td>${statusBadge(x.status)}</td><td class="small">${esc(x.reference)}</td><td>${esc(x.date)}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="openPaymentForm(db.payments.find(p=>p.id==='${x.id}'))">Edit</button>${x.status==='Unpaid'?`<button class="mini" onclick="markPaymentPaid('${x.id}')">Mark Paid</button>`:''}<button class="mini danger-mini" onclick="deletePayment('${x.id}')">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="8"><div class="empty">No payments found.</div></td></tr>`;document.getElementById('payCount').textContent=`${rows.length} payment(s)`}
-function markPaymentPaid(id){const x=db.payments.find(p=>p.id===id);x.status='Paid';x.reference=x.reference==='—'?uid('pi').toLowerCase():x.reference;const a=db.applications.find(a=>a.id===x.application);if(a)a.payment='Paid';save();toast('Payment marked as paid');initPayments()}
-function deletePayment(id){if(!confirm('Delete this payment?'))return;db.payments=db.payments.filter(x=>x.id!==id);save();toast('Payment deleted');initPayments()}
-function exportPayments(){csvDownload('pitchxpo_payments.csv',db.payments)}
-function openEventForm(x={}){const edit=!!x.id;openModal(edit?'Edit Event':'Add Event',`<form id="eventForm" class="form-grid"><div class="field full"><label>Event Name</label><input class="input" name="name" value="${esc(x.name)}" required></div><div class="field"><label>From Date</label><input class="input" type="date" name="fromDate" value="${esc(x.fromDate||x.date)}" required></div><div class="field"><label>To Date</label><input class="input" type="date" name="toDate" value="${esc(x.toDate||x.date||x.fromDate)}" required></div><div class="field"><label>Venue</label><input class="input" name="venue" value="${esc(x.venue)}" required></div><div class="field"><label>Status</label><select name="status"><option ${x.status==='Open'?'selected':''}>Open</option><option ${x.status==='Closed'?'selected':''}>Closed</option></select></div><div class="field"><label>Applications</label><input class="input" type="number" name="applications" value="${x.applications??0}" min="0"></div></form>`, `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveEvent(${edit?`'${x.id}'`:'null'})">Save Event</button>`)}
-function saveEvent(id){const f=document.getElementById('eventForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));if(o.toDate<o.fromDate)return toast('To Date cannot be before From Date');o.applications=Number(o.applications);delete o.date;if(id)Object.assign(db.events.find(x=>x.id===id),o);else db.events.unshift({...o,id:uid('EV')});save();closeModal();toast('Event saved');initEvents()}
-function initEvents(){const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1><div class="sub">Manage conclaves, venues and event availability</div></div><div class="actions"><button class="secondary" onclick="exportEvents()">Download Excel</button><button class="primary" onclick="openEventForm()">+ Add Event</button></div></div><div class="panel"><div class="toolbar"><input id="eventSearch" class="input search" placeholder="Search event or venue..." oninput="renderEvents()"><select id="eventStatus" onchange="renderEvents()"><option value="">All Status</option><option>Open</option><option>Closed</option></select></div><div class="table-wrap"><table><thead><tr><th>Event</th><th>From Date</th><th>To Date</th><th>Venue</th><th>Applications</th><th>Status</th><th>Actions</th></tr></thead><tbody id="eventRows"></tbody></table></div></div></section>`;layout('Events','events',content);renderEvents()}
-function renderEvents(){const q=(document.getElementById('eventSearch')?.value||'').toLowerCase(),s=document.getElementById('eventStatus')?.value||'';const rows=db.events.filter(x=>(!q||[x.name,x.venue].join(' ').toLowerCase().includes(q))&&(!s||x.status===s));const el=document.getElementById('eventRows');if(!el)return;el.innerHTML=rows.map(x=>`<tr><td><div class="biz"><strong>${esc(x.name)}</strong><span>${x.id}</span></div></td><td>${esc(x.fromDate||x.date)}</td><td>${esc(x.toDate||x.date||x.fromDate)}</td><td>${esc(x.venue)}</td><td class="strong">${x.applications}</td><td>${statusBadge(x.status)}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="openEventForm(db.events.find(e=>e.id==='${x.id}'))">Edit</button><button class="mini" onclick="toggleEvent('${x.id}')">${x.status==='Open'?'Close':'Open'}</button><button class="mini danger-mini" onclick="deleteEvent('${x.id}')">Delete</button></div></td></tr>`).join('')||`<tr><td colspan="7"><div class="empty">No events found.</div></td></tr>`}
-function toggleEvent(id){const x=db.events.find(e=>e.id===id);x.status=x.status==='Open'?'Closed':'Open';save();toast('Event status updated');initEvents()}
-function deleteEvent(id){if(!confirm('Delete this event?'))return;db.events=db.events.filter(x=>x.id!==id);save();toast('Event deleted');initEvents()}
-function exportEvents(){csvDownload('pitchxpo_events.csv',db.events)}
-function openTypeForm(x={}){const edit=!!x.id;openModal(edit?'Edit Application Category':'Add Application Category',`<form id="typeForm" class="form-grid"><div class="field"><label>Category Name</label><input class="input" name="name" value="${esc(x.name)}" required></div><div class="field"><label>Price</label><input class="input" type="number" min="0" name="price" value="${x.price??99}" required></div><div class="field full"><label>Description</label><textarea name="description">${esc(x.description)}</textarea></div><div class="field full"><label class="check"><input type="checkbox" name="active" ${x.active!==false?'checked':''}> Active category</label></div></form>`, `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveType(${edit?`'${x.id}'`:'null'})">Save Category</button>`)}
-function saveType(id){const f=document.getElementById('typeForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));o.price=Number(o.price);o.active=f.elements.active.checked;if(id)Object.assign(db.types.find(x=>x.id===id),o);else db.types.push({...o,id:uid('TP')});save();closeModal();toast('Category saved');initTypes()}
-function initTypes(){const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1><div class="sub">Manage application categories and pricing</div></div><div class="actions"><button class="secondary" onclick="exportTypes()">Download Excel</button><button class="primary" onclick="openTypeForm()">+ Add Category</button></div></div><div class="responsive-note">Changing a category price updates new applications. Existing applications keep their saved amount.</div><div class="panel"><div class="table-wrap"><table><thead><tr><th>Category</th><th>Description</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody id="typeRows"></tbody></table></div></div></section>`;layout('Types & Pricing','types',content);renderTypes()}
-function renderTypes(){const el=document.getElementById('typeRows');if(!el)return;el.innerHTML=db.types.map(x=>`<tr><td><div class="biz"><strong>${esc(x.name)}</strong><span>${x.id}</span></div></td><td class="muted">${esc(x.description)}</td><td class="strong">${money(x.price)}</td><td>${statusBadge(x.active?'Active':'Inactive')}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="openTypeForm(db.types.find(t=>t.id==='${x.id}'))">Edit</button><button class="mini" onclick="toggleType('${x.id}')">${x.active?'Disable':'Enable'}</button><button class="mini danger-mini" onclick="deleteType('${x.id}')">Delete</button></div></td></tr>`).join('')}
-function toggleType(id){const x=db.types.find(t=>t.id===id);x.active=!x.active;save();toast('Category status updated');initTypes()}
-function deleteType(id){if(!confirm('Delete this category?'))return;db.types=db.types.filter(x=>x.id!==id);save();toast('Category deleted');initTypes()}
-function exportTypes(){csvDownload('pitchxpo_types_pricing.csv',db.types)}
-function openUserForm(x={}){const edit=!!x.id;openModal(edit?'Edit Admin User':'Add Admin User',`<form id="userForm" class="form-grid"><div class="field"><label>Full Name</label><input class="input" name="name" value="${esc(x.name)}" required></div><div class="field"><label>Email</label><input class="input" type="email" name="email" value="${esc(x.email)}" required></div><div class="field"><label>Role</label><select name="role"><option ${x.role==='Administrator'?'selected':''}>Administrator</option><option ${x.role==='Reviewer'?'selected':''}>Reviewer</option><option ${x.role==='Finance'?'selected':''}>Finance</option></select></div><div class="field"><label>Status</label><select name="status"><option ${x.status==='Active'?'selected':''}>Active</option><option ${x.status==='Inactive'?'selected':''}>Inactive</option></select></div></form>`, `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveUser(${edit?`'${x.id}'`:'null'})">Save User</button>`)}
-function saveUser(id){const f=document.getElementById('userForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));if(id)Object.assign(db.users.find(x=>x.id===id),o);else db.users.push({...o,id:uid('USR'),lastLogin:'Never'});save();closeModal();toast('Admin user saved');initUsers()}
-function initUsers(){const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1><div class="sub">Manage administrators, reviewers and finance users</div></div><div class="actions"><button class="secondary" onclick="exportUsers()">Download Excel</button><button class="primary" onclick="openUserForm()">+ Add Admin User</button></div></div><div class="panel"><div class="toolbar"><input id="userSearch" class="input search" placeholder="Search name or email..." oninput="renderUsers()"><select id="userRole" onchange="renderUsers()"><option value="">All Roles</option><option>Administrator</option><option>Reviewer</option><option>Finance</option></select></div><div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead><tbody id="userRows"></tbody></table></div></div></section>`;layout('Admin Users','users',content);renderUsers()}
-function renderUsers(){const q=(document.getElementById('userSearch')?.value||'').toLowerCase(),r=document.getElementById('userRole')?.value||'';const rows=db.users.filter(x=>(!q||[x.name,x.email].join(' ').toLowerCase().includes(q))&&(!r||x.role===r));const el=document.getElementById('userRows');if(!el)return;el.innerHTML=rows.map(x=>`<tr><td><div class="person"><div class="person-avatar">${initials(x.name)}</div><div><strong>${esc(x.name)}</strong><span>${esc(x.email)}</span></div></div></td><td>${esc(x.role)}</td><td>${statusBadge(x.status)}</td><td>${esc(x.lastLogin)}</td><td><div class="actions-cell"><button class="mini primary-mini" onclick="openUserForm(db.users.find(u=>u.id==='${x.id}'))">Edit</button><button class="mini" onclick="toggleUser('${x.id}')">${x.status==='Active'?'Deactivate':'Activate'}</button><button class="mini danger-mini" onclick="deleteUser('${x.id}')">Delete</button></div></td></tr>`).join('')}
-function toggleUser(id){const x=db.users.find(u=>u.id===id);x.status=x.status==='Active'?'Inactive':'Active';save();toast('User status updated');initUsers()}
-function deleteUser(id){if(id==='USR-001')return toast('The primary admin cannot be deleted in this demo');if(!confirm('Delete this admin user?'))return;db.users=db.users.filter(x=>x.id!==id);save();toast('Admin user deleted');initUsers()}
-function exportUsers(){csvDownload('pitchxpo_admin_users.csv',db.users)}
-function initAccount(){const a=db.account;const content=`<section class="content"><div class="head-row"><div><div class="eyebrow">Profile</div><h1>My Account</h1><div class="sub">Update your administrator profile and account details</div></div></div><div class="account-grid"><div class="panel profile-card"><div class="big-avatar">${initials(a.name)}</div><h2>${esc(a.name)}</h2><div class="muted small">${esc(a.email)}</div><div style="margin-top:12px"><span class="role">${esc(a.role)}</span></div><div style="margin-top:12px;color:var(--green);font-size:12px;font-weight:800">● Active account</div></div><div class="panel" style="padding:24px"><h2>Profile Information</h2><p class="sub" style="margin:6px 0 20px">These details are stored locally for this working prototype.</p><form id="accountForm" class="form-grid"><div class="field"><label>Full Name</label><input class="input" name="name" value="${esc(a.name)}" required></div><div class="field"><label>Email</label><input class="input" type="email" name="email" value="${esc(a.email)}" required></div><div class="field"><label>Phone</label><input class="input" name="phone" value="${esc(a.phone)}"></div><div class="field"><label>Role</label><input class="input" value="${esc(a.role)}" readonly></div></form><div class="actions" style="justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)"><button class="primary" onclick="saveAccount()">Save Changes</button></div></div></div><div class="panel security"><div><h3>Security</h3><p>Change your password or recover access if you forget it.</p></div><div class="actions"><a class="secondary" style="text-decoration:none" href="#change_password">Change Password</a><a class="secondary" style="text-decoration:none" href="#forgot_password">Forgot Password Flow</a></div></div></section>`;layout('My Account','',content)}
-function saveAccount(){const f=document.getElementById('accountForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));db.account={...db.account,...o};save();toast('Profile updated');initAccount()}
-function initChangePassword(){const content=`<section class="content"><div style="max-width:720px"><div class="eyebrow">Security</div><h1>Change Password</h1><div class="sub" style="margin-bottom:22px">Update the password for your current admin account.</div><div class="panel" style="padding:24px"><form id="changeForm"><div class="field" style="margin-bottom:16px"><label>Current Password</label><input class="input" type="password" name="current" required></div><div class="field" style="margin-bottom:16px"><label>New Password</label><input class="input" type="password" name="newpass" required><small class="muted">Use at least 8 characters with a number.</small></div><div class="field"><label>Confirm New Password</label><input class="input" type="password" name="confirm" required></div><div class="note-box">Demo mode: the password is stored locally in this browser. Connect this form to your backend authentication API for production.</div><div class="actions" style="justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)"><a class="secondary" style="text-decoration:none" href="#my_account">Cancel</a><button class="primary" type="button" onclick="savePassword()">Save Password</button></div></form></div></div></section>`;layout('Change Password','',content)}
-function savePassword(){const f=document.getElementById('changeForm');if(!f.reportValidity())return;const o=Object.fromEntries(new FormData(f));if(o.newpass.length<8)return toast('New password must be at least 8 characters');if(o.newpass!==o.confirm)return toast('Passwords do not match');localStorage.setItem('pitchxpo_password',o.newpass);toast('Password changed successfully');f.reset()}
-function initForgot(){document.getElementById('root').innerHTML=`<header class="topbar" style="position:static;padding:0 30px"><div class="brand" style="padding:0"><img src="assets/pitch-logo.png" style="width:145px;height:48px;object-fit:contain"></div><span class="muted small">PitchXPO Admin</span></header><main class="content"><div class="forgot-wrap"><div class="flow"><div class="step active" id="s1"><span class="circle">1</span> Email</div><span class="line"></span><div class="step" id="s2"><span class="circle">2</span> Verify</div><span class="line"></span><div class="step" id="s3"><span class="circle">3</span> Reset</div></div><div class="forgot-card"><div id="forgot1"><img class="pitch" src="assets/pitch-logo.png"><h1>Forgot password?</h1><p>Enter your admin email and we will generate a verification code for this demo.</p><div class="field" style="margin-top:22px"><label>Email Address</label><input id="forgotEmail" class="input" type="email" placeholder="admin@pitchxpo.com"></div><button class="primary" style="width:100%;margin-top:5px" onclick="sendResetCode()">Send Verification Code</button></div><div id="forgot2" class="hidden"><div class="success-circle">✓</div><h1>Check your email</h1><p>We have generated a 6-digit verification code for your admin account.</p><div class="field" style="margin-top:22px"><label>Verification Code</label><input id="forgotCode" class="input otp" maxlength="6" placeholder="123456"></div><button class="primary" style="width:100%;margin-top:5px" onclick="verifyResetCode()">Verify Code</button><p class="login-note">Demo code: <strong>123456</strong></p></div><div id="forgot3" class="hidden"><img class="pitch" src="assets/pitch-logo.png"><h1>Set new password</h1><p>Create a new password for your admin account.</p><div class="field" style="margin-top:22px"><label>New Password</label><input id="resetNew" class="input" type="password"></div><div class="field"><label>Confirm Password</label><input id="resetConfirm" class="input" type="password"></div><button class="primary" style="width:100%;margin-top:5px" onclick="finishReset()">Reset Password</button></div><div id="forgotDone" class="hidden"><div class="success-circle">✓</div><h1>Password reset</h1><p>Your password has been updated. You can now continue to the admin account.</p><div class="center"><a class="primary" style="text-decoration:none" href="#dashboard">Go to Dashboard</a></div></div></div><div class="login-note">This is a front-end working prototype. Real email/OTP delivery requires backend integration.</div></div></main><div class="toast"></div>`}
-function sendResetCode(){const email=document.getElementById('forgotEmail').value;if(!email)return toast('Enter your email');document.getElementById('forgot1').classList.add('hidden');document.getElementById('forgot2').classList.remove('hidden');document.getElementById('s1').classList.remove('active');document.getElementById('s2').classList.add('active');toast('Verification code generated')}
-function verifyResetCode(){if(document.getElementById('forgotCode').value!=='123456')return toast('Invalid verification code');document.getElementById('forgot2').classList.add('hidden');document.getElementById('forgot3').classList.remove('hidden');document.getElementById('s2').classList.remove('active');document.getElementById('s3').classList.add('active')}
-function finishReset(){const a=document.getElementById('resetNew').value,b=document.getElementById('resetConfirm').value;if(a.length<8)return toast('Password must be at least 8 characters');if(a!==b)return toast('Passwords do not match');localStorage.setItem('pitchxpo_password',a);document.getElementById('forgot3').classList.add('hidden');document.getElementById('forgotDone').classList.remove('hidden');toast('Password reset successfully')}
-function getPage(){const h=(location.hash||'').replace(/^#/,''); if(h)return h; const p=location.pathname.split('/').pop(); return p||'dashboard'}
-function init(){const p=getPage();if(p.includes('forgot_password'))return initForgot();if(p.includes('change_password'))return initChangePassword();if(p.includes('my_account'))return initAccount();if(p.includes('applications'))return initApplications();if(p.includes('payments'))return initPayments();if(p.includes('events'))return initEvents();if(p.includes('types_pricing'))return initTypes();if(p.includes('admin_users'))return initUsers();return initDashboard()}
-window.addEventListener('DOMContentLoaded',init);
 
-// --- Authentication layer ---
-const SESSION_KEY='pitchxpo_demo_session';
-function isLoggedIn(){return localStorage.getItem(SESSION_KEY)==='1'}
-function initLogin(){
- document.title='PitchXPO Admin — Login';
- document.getElementById('root').innerHTML=`<div class="login-page"><div class="login-shell"><section class="login-brand-side"><img src="assets/pitch-logo.png" alt="Pitch"><h2>PitchXPO Admin Portal</h2><p>Manage applications, events, payments and your PitchXPO administration from one simple workspace.</p><div class="login-points"><div class="login-point"><span>✓</span>Application review & approval</div><div class="login-point"><span>✓</span>Events, dates and pricing management</div><div class="login-point"><span>✓</span>Payments and admin users</div></div></section><section class="login-form-side"><div class="eyebrow">Secure access</div><h1>Welcome back</h1><div class="login-sub">Sign in to continue to your PitchXPO Admin Panel.</div><div id="loginError" class="login-error">Invalid email or password.</div><form class="login-form" id="loginForm"><div class="field"><label>Email Address</label><input id="loginEmail" class="input" type="email" placeholder="admin@pitchxpo.com" autocomplete="username" required></div><div class="field"><label>Password</label><div class="password-wrap"><input id="loginPassword" class="input" type="password" placeholder="Enter your password" autocomplete="current-password" required><button class="show-pass" type="button" onclick="toggleLoginPassword()">Show</button></div></div><div class="login-options"><label><input id="rememberLogin" type="checkbox"> Remember me</label><a href="#forgot_password">Forgot password?</a></div><button class="primary login-submit" type="submit">Sign In</button></form><div class="demo-login"><strong>Demo login</strong><br>Email: admin@pitchxpo.com &nbsp; | &nbsp; Password: Admin@1234</div><div class="login-footer">PitchXPO Admin Panel · Secure administrator access</div></section></div></div>`;
- document.getElementById('loginForm').addEventListener('submit',e=>{e.preventDefault();const email=document.getElementById('loginEmail').value.trim().toLowerCase(),pass=document.getElementById('loginPassword').value;const saved=localStorage.getItem('pitchxpo_password')||'Admin@1234';if(email==='admin@pitchxpo.com'&&pass===saved){localStorage.setItem(SESSION_KEY,'1');location.hash='#dashboard';init()}else document.getElementById('loginError').classList.add('show')});
+function openEventForm(x = {}) {
+  openModal(
+    x.id ? 'Edit Event' : 'Add Event',
+    `<form id="eventForm" class="form-grid">
+      <div class="field full"><label>Name</label><input class="input" name="name" value="${esc(x.name || '')}" required></div>
+      <div class="field"><label>From</label><input class="input" type="date" name="fromDate" value="${esc(String(x.fromDate || '').slice(0, 10))}" required></div>
+      <div class="field"><label>To</label><input class="input" type="date" name="toDate" value="${esc(String(x.toDate || '').slice(0, 10))}" required></div>
+      <div class="field"><label>Venue</label><input class="input" name="venue" value="${esc(x.venue || '')}" required></div>
+      <div class="field"><label>Status</label><select name="status"><option ${x.status === 'Open' ? 'selected' : ''}>Open</option><option ${x.status === 'Closed' ? 'selected' : ''}>Closed</option></select></div>
+    </form>`,
+    `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveEvent('${x.id || ''}')">Save</button>`,
+  );
 }
-function toggleLoginPassword(){const i=document.getElementById('loginPassword'),b=document.querySelector('.show-pass');if(i.type==='password'){i.type='text';b.textContent='Hide'}else{i.type='password';b.textContent='Show'}}
-// Protect all admin pages; login and password-recovery remain public.
-const __originalInit=init;
-init=function(){const p=getPage();if(p.includes('login'))return initLogin();if(!isLoggedIn() && !p.includes('forgot_password'))return initLogin();return __originalInit()}
-// Update logout and password-recovery completion to return to login.
-logout=function(){localStorage.removeItem(SESSION_KEY);sessionStorage.clear();location.hash='#login';initLogin()};
-const __oldFinishReset=finishReset;
-finishReset=function(){__oldFinishReset();setTimeout(()=>{localStorage.removeItem(SESSION_KEY);const btn=document.querySelector('#forgotDone a');if(btn){btn.href='#login';btn.textContent='Return to Login'}},50)};
-const __oldInitForgot=initForgot;
-initForgot=function(){__oldInitForgot();const card=document.querySelector('.forgot-card');if(card&&!document.querySelector('.back-login')){const a=document.createElement('div');a.className='login-note back-login';a.innerHTML='<a href="#login" style="color:#7023ed;font-weight:800;text-decoration:none">← Back to Login</a>';card.appendChild(a)}}
 
-window.addEventListener('hashchange',()=>{closeMobileMenu();init()});
-document.addEventListener('click',e=>{const w=document.querySelector('.user-wrap'),m=document.getElementById('userMenu');if(w&&m&&!w.contains(e.target))m.classList.add('hidden')});
+async function saveEvent(id) {
+  const f = document.getElementById('eventForm');
+  if (!f.reportValidity()) return;
+  const o = Object.fromEntries(new FormData(f));
+  try {
+    if (id) await api.updateEvent(id, o);
+    else await api.createEvent(o);
+    closeModal();
+    toast('Event saved');
+    await initEvents();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
 
+async function removeEvent(id) {
+  if (!confirm('Delete this event?')) return;
+  try {
+    await api.deleteEvent(id);
+    toast('Event deleted');
+    await initEvents();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
 
-// React/Vite bootstrap: expose the page initializer so React can mount the admin UI reliably.
+async function initTypes() {
+  if (!can('settings')) return initDashboard();
+  const { categories } = await api.categories();
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1><div class="sub">Application categories used by public registration</div></div>
+    <div class="actions"><button class="primary" onclick="openTypeForm()">+ Add Category</button></div></div>
+    <div class="panel"><div class="table-wrap"><table><thead><tr><th>Category</th><th>Description</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
+    ${categories
+      .map(
+        (x) =>
+          `<tr><td class="strong">${esc(x.name)}</td><td class="muted">${esc(x.description)}</td><td>${money(x.amount, x.currency)}</td><td>${statusBadge(x.active ? 'Active' : 'Inactive')}</td><td><button class="mini" onclick='openTypeForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeType('${x.id}')">Delete</button></td></tr>`,
+      )
+      .join('')}
+    </tbody></table></div></div></section>`;
+  layout('Types & Pricing', 'types', content);
+}
+
+function openTypeForm(x = {}) {
+  openModal(
+    x.id ? 'Edit Category' : 'Add Category',
+    `<form id="typeForm" class="form-grid">
+      <div class="field"><label>Name</label><input class="input" name="name" value="${esc(x.name || '')}" required></div>
+      <div class="field"><label>Price</label><input class="input" type="number" min="1" step="0.01" name="amount" value="${x.amount ?? 99}" required></div>
+      <div class="field full"><label>Description</label><textarea name="description">${esc(x.description || '')}</textarea></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Active</label></div>
+    </form>`,
+    `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveType('${x.id || ''}')">Save</button>`,
+  );
+}
+
+async function saveType(id) {
+  const f = document.getElementById('typeForm');
+  if (!f.reportValidity()) return;
+  const o = Object.fromEntries(new FormData(f));
+  o.amount = Number(o.amount);
+  o.active = f.elements.active.checked;
+  o.currency = 'usd';
+  try {
+    if (id) await api.updateCategory(id, o);
+    else await api.createCategory(o);
+    closeModal();
+    toast('Category saved');
+    await initTypes();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function removeType(id) {
+  if (!confirm('Delete this category?')) return;
+  try {
+    await api.deleteCategory(id);
+    await initTypes();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function initUsers() {
+  if (!can('settings')) return initDashboard();
+  const { users } = await api.users();
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1><div class="sub">Roles: administrator, reviewer, finance</div></div>
+    <div class="actions"><button class="primary" onclick="openUserForm()">+ Add Admin User</button></div></div>
+    <div class="panel"><div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead><tbody>
+    ${users
+      .map(
+        (x) =>
+          `<tr><td><div class="person"><div class="person-avatar">${initials(x.name)}</div><div><strong>${esc(x.name)}</strong><span>${esc(x.email)}</span></div></div></td><td>${statusBadge(x.role)}</td><td>${statusBadge(x.status === 'active' ? 'Active' : 'Inactive')}</td><td>${esc(x.lastLoginAt || 'Never')}</td><td><button class="mini" onclick='openUserForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeUser('${x.id}')">Delete</button></td></tr>`,
+      )
+      .join('')}
+    </tbody></table></div></div></section>`;
+  layout('Admin Users', 'users', content);
+}
+
+function openUserForm(x = {}) {
+  openModal(
+    x.id ? 'Edit Admin User' : 'Add Admin User',
+    `<form id="userForm" class="form-grid">
+      <div class="field"><label>Name</label><input class="input" name="name" value="${esc(x.name || '')}" required></div>
+      <div class="field"><label>Email</label><input class="input" type="email" name="email" value="${esc(x.email || '')}" required></div>
+      ${x.id ? '' : '<div class="field"><label>Temporary password</label><input class="input" type="password" name="password" minlength="8" required></div>'}
+      <div class="field"><label>Role</label><select name="role"><option value="administrator" ${x.role === 'administrator' ? 'selected' : ''}>administrator</option><option value="reviewer" ${x.role === 'reviewer' ? 'selected' : ''}>reviewer</option><option value="finance" ${x.role === 'finance' ? 'selected' : ''}>finance</option></select></div>
+      <div class="field"><label>Status</label><select name="status"><option value="active" ${x.status !== 'inactive' ? 'selected' : ''}>active</option><option value="inactive" ${x.status === 'inactive' ? 'selected' : ''}>inactive</option></select></div>
+    </form>`,
+    `<button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="saveUser('${x.id || ''}')">Save</button>`,
+  );
+}
+
+async function saveUser(id) {
+  const f = document.getElementById('userForm');
+  if (!f.reportValidity()) return;
+  const o = Object.fromEntries(new FormData(f));
+  try {
+    if (id) await api.updateUser(id, o);
+    else await api.createUser(o);
+    closeModal();
+    toast('Admin user saved');
+    await initUsers();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function removeUser(id) {
+  if (!confirm('Delete this admin user?')) return;
+  try {
+    await api.deleteUser(id);
+    await initUsers();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function initAccount() {
+  const a = getProfile() || {};
+  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Profile</div><h1>My Account</h1></div></div>
+    <div class="account-grid"><div class="panel profile-card"><div class="big-avatar">${initials(a.name)}</div><h2>${esc(a.name)}</h2><div class="muted small">${esc(a.email)}</div><div style="margin-top:12px"><span class="role">${esc(a.role)}</span></div></div>
+    <div class="panel" style="padding:24px"><form id="accountForm" class="form-grid">
+      <div class="field"><label>Full Name</label><input class="input" name="name" value="${esc(a.name || '')}" required></div>
+      <div class="field"><label>Phone</label><input class="input" name="phone" value="${esc(a.phone || '')}"></div>
+      <div class="field"><label>Email</label><input class="input" value="${esc(a.email || '')}" readonly></div>
+      <div class="field"><label>Role</label><input class="input" value="${esc(a.role || '')}" readonly></div>
+    </form>
+    <p class="sub">To change email, use the email form below (requires current password).</p>
+    <form id="emailForm" class="form-grid" style="margin-top:16px">
+      <div class="field"><label>Current password</label><input class="input" type="password" name="currentPassword" required></div>
+      <div class="field"><label>New email</label><input class="input" type="email" name="newEmail" required></div>
+    </form>
+    <div class="actions" style="justify-content:flex-end;margin-top:22px"><button class="secondary" type="button" onclick="saveEmail()">Update email</button><button class="primary" type="button" onclick="saveAccount()">Save profile</button></div></div></div></section>`;
+  layout('My Account', '', content);
+}
+
+async function saveAccount() {
+  const f = document.getElementById('accountForm');
+  const o = Object.fromEntries(new FormData(f));
+  try {
+    const res = await api.updateMe(o);
+    setSession(getToken(), res.admin);
+    toast('Profile updated');
+    await initAccount();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+async function saveEmail() {
+  const f = document.getElementById('emailForm');
+  if (!f.reportValidity()) return;
+  const o = Object.fromEntries(new FormData(f));
+  try {
+    const res = await api.changeEmail(o);
+    setSession(getToken(), res.admin);
+    toast('Email updated');
+    await initAccount();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+function initChangePassword() {
+  layout(
+    'Change Password',
+    '',
+    `<section class="content"><div style="max-width:720px"><h1>Change Password</h1>
+    <div class="panel" style="padding:24px"><form id="changeForm">
+      <div class="field" style="margin-bottom:16px"><label>Current Password</label><input class="input" type="password" name="currentPassword" required></div>
+      <div class="field" style="margin-bottom:16px"><label>New Password</label><input class="input" type="password" name="newPassword" minlength="8" required></div>
+      <div class="actions" style="justify-content:flex-end;margin-top:22px"><button class="primary" type="button" onclick="savePassword()">Save Password</button></div>
+    </form></div></div></section>`,
+  );
+}
+
+async function savePassword() {
+  const f = document.getElementById('changeForm');
+  if (!f.reportValidity()) return;
+  const o = Object.fromEntries(new FormData(f));
+  try {
+    await api.changePassword(o);
+    toast('Password updated');
+    f.reset();
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+function initForgot() {
+  document.getElementById('root').innerHTML = `<main class="content"><div class="forgot-card">
+    <h1>Forgot password?</h1><p>Enter your admin email. If an account exists, a reset link will be sent.</p>
+    <div class="field" style="margin-top:22px"><label>Email</label><input id="forgotEmail" class="input" type="email"></div>
+    <button class="primary" style="width:100%;margin-top:8px" onclick="sendReset()">Send reset link</button>
+    <p class="login-note"><a href="#login">Back to login</a></p>
+  </div></main><div class="toast"></div>`;
+}
+
+async function sendReset() {
+  const email = document.getElementById('forgotEmail').value;
+  try {
+    const res = await api.forgotPassword(email);
+    toast(res.message || 'If an account exists, a reset link has been sent.');
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+function initReset() {
+  const { params } = parseHash();
+  const token = params.get('token') || '';
+  document.getElementById('root').innerHTML = `<main class="content"><div class="forgot-card">
+    <h1>Set new password</h1>
+    <div class="field"><label>New password</label><input id="resetNew" class="input" type="password" minlength="8"></div>
+    <div class="field"><label>Confirm</label><input id="resetConfirm" class="input" type="password"></div>
+    <button class="primary" style="width:100%;margin-top:8px" onclick="finishReset('${esc(token)}')">Reset password</button>
+  </div></main><div class="toast"></div>`;
+}
+
+async function finishReset(token) {
+  const a = document.getElementById('resetNew').value;
+  const b = document.getElementById('resetConfirm').value;
+  if (a !== b) return toast('Passwords do not match');
+  try {
+    await api.resetPassword({ token, newPassword: a });
+    toast('Password has been reset');
+    location.hash = '#login';
+  } catch (err) {
+    toast(errorMessage(err));
+  }
+}
+
+function initLogin() {
+  document.title = 'PitchXPO Admin — Login';
+  document.getElementById('root').innerHTML = `<div class="login-page"><div class="login-shell">
+    <section class="login-brand-side"><img src="/assets/pitch-logo.png" alt="Pitch"><h2>PitchXPO Admin Portal</h2><p>Sign in with your production admin account. Data is loaded from PostgreSQL.</p></section>
+    <section class="login-form-side"><div class="eyebrow">Secure access</div><h1>Welcome back</h1>
+    <div id="loginError" class="login-error">Invalid email or password.</div>
+    <form class="login-form" id="loginForm">
+      <div class="field"><label>Email Address</label><input id="loginEmail" class="input" type="email" required></div>
+      <div class="field"><label>Password</label><input id="loginPassword" class="input" type="password" required></div>
+      <div class="login-options"><span></span><a href="#forgot_password">Forgot password?</a></div>
+      <button class="primary login-submit" type="submit">Sign In</button>
+    </form></section></div></div><div class="toast"></div>`;
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.login(
+        document.getElementById('loginEmail').value,
+        document.getElementById('loginPassword').value,
+      );
+      setSession(res.token, res.admin);
+      location.hash = '#dashboard';
+      init();
+    } catch (err) {
+      document.getElementById('loginError').classList.add('show');
+      document.getElementById('loginError').textContent = errorMessage(err);
+    }
+  });
+}
+
+async function init() {
+  const { page } = parseHash();
+  if (page.includes('login')) return initLogin();
+  if (page.includes('forgot_password')) return initForgot();
+  if (page.includes('reset_password')) return initReset();
+  if (!getToken()) return initLogin();
+  try {
+    const me = await api.me();
+    setSession(getToken(), me.admin);
+  } catch {
+    clearSession();
+    return initLogin();
+  }
+  if (page.includes('change_password')) return initChangePassword();
+  if (page.includes('my_account')) return initAccount();
+  if (page.includes('applications')) return initApplications();
+  if (page.includes('payments')) return initPayments();
+  if (page.includes('events')) return initEvents();
+  if (page.includes('types_pricing')) return initTypes();
+  if (page.includes('admin_users')) return initUsers();
+  return initDashboard();
+}
+
+window.addEventListener('hashchange', () => {
+  closeMobileMenu();
+  init();
+});
+document.addEventListener('click', (e) => {
+  const w = document.querySelector('.user-wrap');
+  const m = document.getElementById('userMenu');
+  if (w && m && !w.contains(e.target)) m.classList.add('hidden');
+});
+
 window.pitchxpoInit = init;
-if(document.readyState === 'loading'){
-  window.addEventListener('DOMContentLoaded',()=>window.pitchxpoInit(),{once:true});
-}else{
+Object.assign(window, {
+  logout,
+  closeMobileMenu,
+  closeModal,
+  openMobileMenu,
+  toggleUserMenu,
+  viewApplication,
+  addNote,
+  setApplicationStatus,
+  exportApplications,
+  exportApplicationReport,
+  exportPayments,
+  openEventForm,
+  saveEvent,
+  removeEvent,
+  openTypeForm,
+  saveType,
+  removeType,
+  openUserForm,
+  saveUser,
+  removeUser,
+  saveAccount,
+  saveEmail,
+  savePassword,
+  sendReset,
+  finishReset,
+});
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', () => window.pitchxpoInit(), { once: true });
+} else {
   window.pitchxpoInit();
 }
-
-// Expose the legacy UI handlers to the browser global scope.
-// The pages are rendered as HTML strings and use inline onclick/onchange handlers,
-// so Vite's ES-module scope must explicitly publish these functions.
-Object.assign(window, {
-  db,
-  closeMobileMenu, closeModal, deleteApplication, deleteEvent, deletePayment,
-  deleteType, deleteUser, downloadDocument, editApplication, exportApplications,
-  exportEvents, exportPayments, exportTypes, exportUsers, finishReset,
-  logout, markPaymentPaid, openApplicationForm, openEventForm, openMobileMenu,
-  openPaymentForm, openTypeForm, openUserForm, saveAccount, saveApplication,
-  saveEvent, savePassword, savePayment, saveType, saveUser, sendResetCode,
-  setAppTab, setApplicationStatus, toggleEvent, toggleLoginPassword,
-  toggleType, toggleUser, toggleUserMenu, verifyResetCode, viewApplication,
-  renderApplications, renderPayments, renderEvents, renderTypes, renderUsers,
-  init, initLogin, toggleLoginPassword
-});

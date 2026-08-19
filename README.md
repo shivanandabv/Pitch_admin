@@ -1,6 +1,6 @@
-# PitchXPO Admin — React/Vite Final
+# PitchXPO Admin
 
-A responsive PitchXPO Admin Panel using the supplied PITCH visual style.
+Production admin UI for PitchXPO. It authenticates with JWT against the PitchXPO backend and loads applications, payments, and settings from PostgreSQL.
 
 ## Run
 ```bash
@@ -8,14 +8,6 @@ npm install
 npm run dev
 ```
 
-## Demo login
-- Email: `admin@pitchxpo.com`
-- Password: `Admin@1234`
+Vite serves http://localhost:5174. Set `VITE_API_BASE_URL` to the backend origin (default `http://localhost:3001`).
 
-## Notes
-- Currency is USD throughout.
-- Events use From Date and To Date.
-- Applications, Payments, Events, Types & Pricing and Admin Users support add/edit/delete and status actions.
-- Data is stored in browser localStorage for this prototype.
-- Login/logout and password-reset flows are included.
-- The app uses a versioned localStorage key (`pitchxpo_admin_v4`) so stale data from earlier builds cannot blank the dashboard.
+Sign in with an admin created by backend `npm run seed:admin`. The JWT is kept in sessionStorage. Applications, payments, events, categories, and users are never stored as source of truth in localStorage.

@@ -1,5 +1,8 @@
 import { api, ApiError, clearSession, downloadCsv, getProfile, getToken, setSession } from './api.js';
 
+const ASSET_BASE = import.meta.env.BASE_URL || '/';
+const LOGO_SRC = `${ASSET_BASE}assets/pitch-logo.png`;
+
 function esc(v) {
   return String(v ?? '').replace(/[&<>'"]/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]
@@ -104,7 +107,7 @@ function nav(active) {
     ['types', '◇', 'Types & Pricing', '#types_pricing', 'settings'],
     ['users', '♙', 'Admin Users', '#admin_users', 'settings'],
   ].filter((i) => can(i[4] === 'settings' ? 'settings' : i[4]));
-  return `<aside class="sidebar" id="sidebar"><div class="brand"><img src="/assets/pitch-logo.png" alt="Pitch"></div><nav class="menu">${items
+  return `<aside class="sidebar" id="sidebar"><div class="brand"><img src="${LOGO_SRC}" alt="Pitch"></div><nav class="menu">${items
     .map(
       (i) =>
         `<a class="${active === i[0] ? 'active' : ''}" href="${i[3]}" onclick="closeMobileMenu()"><span class="ico">${i[1]}</span><span>${i[2]}</span></a>`,
@@ -152,6 +155,11 @@ function logout() {
 }
 
 async function initDashboard() {
+  layout(
+    'Dashboard',
+    'dashboard',
+    `<section class="content"><div class="head-row"><div><div class="eyebrow">Overview</div><h1>Dashboard</h1><div class="sub">Loading live totals…</div></div></div><div class="panel"><div class="empty">Loading dashboard…</div></div></section>`,
+  );
   try {
     const { dashboard } = await api.dashboard();
     const t = dashboard.totals;
@@ -192,7 +200,7 @@ async function initApplications() {
       <select id="appStatus"><option value="">All application status</option><option>Submitted</option><option>Under Review</option><option>Accepted</option><option>Rejected</option><option>Withdrawn</option></select>
       <select id="payStatus"><option value="">All payment status</option><option>Paid</option><option>Unpaid</option></select>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant</th><th>Package</th><th>Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead><tbody id="appRows"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Applicant</th><th>Package</th><th>Amount</th><th>Payment</th><th>Status</th><th></th></tr></thead><tbody id="appRows"><tr><td colspan="7"><div class="empty">Loading applications…</div></td></tr></tbody></table></div>
     <div class="foot"><span id="appCount"></span><div class="actions"><button class="mini" id="prevPage">Prev</button><button class="mini" id="nextPage">Next</button></div></div></div></section>`;
   layout('Applications', 'applications', content);
   window.__appPage = 1;
@@ -329,12 +337,12 @@ async function exportApplicationReport(id) {
 
 async function initPayments() {
   const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Finance</div><h1>Payments</h1><div class="sub">Stripe-backed records only. Admins cannot mark a payment as Paid.</div></div>
-    <div class="actions">${can('export:payments') ? '<button class="secondary" onclick="exportPayments()">Download Excel</button>' : ''}</div></div>
+    <div class="actions">${can('export:payments') ? '<button class="secondary" onclick="exportPayments()">Download Report</button>' : ''}</div></div>
     <div class="panel"><div class="toolbar">
       <input id="paySearch" class="input search" placeholder="Search applicant, ID or reference...">
       <select id="payFilter"><option value="">All</option><option>Paid</option><option>Unpaid</option></select>
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Submission</th><th>Applicant</th><th>Amount</th><th>Status</th><th>Reference</th><th>Receipt</th><th>Paid at</th></tr></thead><tbody id="payRows"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Submission</th><th>Applicant</th><th>Amount</th><th>Status</th><th>Reference</th><th>Receipt</th><th>Paid at</th></tr></thead><tbody id="payRows"><tr><td colspan="7"><div class="empty">Loading payments…</div></td></tr></tbody></table></div>
     <div class="foot"><span id="payCount"></span></div></div></section>`;
   layout('Payments', 'payments', content);
   const reload = () => renderPayments();
@@ -371,8 +379,12 @@ async function renderPayments() {
 
 async function exportPayments() {
   try {
-    await downloadCsv('/api/admin/export/payments', 'pitchxpo_payments.csv');
-    toast('Excel-compatible CSV downloaded');
+    const query = qs({
+      q: document.getElementById('paySearch')?.value,
+      paymentStatus: document.getElementById('payFilter')?.value,
+    });
+    await downloadCsv(`/api/admin/export/payments${query}`, 'pitchxpo_payments.csv');
+    toast('Payment report downloaded. Open it in Excel.');
   } catch (err) {
     toast(errorMessage(err));
   }
@@ -666,7 +678,7 @@ async function finishReset(token) {
 function initLogin() {
   document.title = 'PitchXPO Admin — Login';
   document.getElementById('root').innerHTML = `<div class="login-page"><div class="login-shell">
-    <section class="login-brand-side"><img src="/assets/pitch-logo.png" alt="Pitch"><h2>PitchXPO Admin Portal</h2><p>Sign in with your production admin account. Data is loaded from PostgreSQL.</p></section>
+    <section class="login-brand-side"><img src="${LOGO_SRC}" alt="Pitch"><h2>PitchXPO Admin Portal</h2><p>Sign in with your production admin account. Data is loaded from PostgreSQL.</p></section>
     <section class="login-form-side"><div class="eyebrow">Secure access</div><h1>Welcome back</h1>
     <div id="loginError" class="login-error">Invalid email or password.</div>
     <form class="login-form" id="loginForm">

@@ -5,6 +5,12 @@ const API_BASE_URL = (
 const TOKEN_KEY = 'pitchxpo_admin_token';
 const PROFILE_KEY = 'pitchxpo_admin_profile';
 
+const PUBLIC_AUTH_PATHS = [
+  '/api/admin/login',
+  '/api/admin/forgot-password',
+  '/api/admin/reset-password',
+];
+
 export class ApiError extends Error {
   constructor(message, status, details) {
     super(message);
@@ -36,6 +42,20 @@ export function clearSession() {
   sessionStorage.removeItem(PROFILE_KEY);
 }
 
+function isPublicAuthPath(path) {
+  const pathname = String(path || '').split('?')[0];
+  return PUBLIC_AUTH_PATHS.includes(pathname);
+}
+
+function handleUnauthorized(path) {
+  if (isPublicAuthPath(path)) return;
+  if (!getToken()) return;
+  clearSession();
+  if (typeof location !== 'undefined' && !String(location.hash || '').includes('login')) {
+    location.hash = '#login';
+  }
+}
+
 export async function apiRequest(path, { method = 'GET', body, raw } = {}) {
   const headers = {};
   const token = getToken();
@@ -51,6 +71,10 @@ export async function apiRequest(path, { method = 'GET', body, raw } = {}) {
     });
   } catch {
     throw new ApiError('Unable to reach the server. Please try again.', 0);
+  }
+
+  if (response.status === 401) {
+    handleUnauthorized(path);
   }
 
   if (raw) return response;

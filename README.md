@@ -12,7 +12,7 @@ npm run dev
 
 Vite serves http://localhost:5174. Default API is `http://localhost:3001` via `VITE_API_BASE_URL`.
 
-Sign in with an admin created by backend `npm run seed:admin`. The JWT is kept in **sessionStorage**. Applications, payments, events, categories, and users are never stored as source of truth in localStorage.
+Sign in with a real Admin account from PostgreSQL (created via backend ops, e.g. `npm run seed:admin` on the server). The JWT is kept in **sessionStorage** only. This UI never uses localStorage as a data source and never ships demo applications, payments, events, categories, or users.
 
 ## Production build
 

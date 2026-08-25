@@ -183,12 +183,17 @@ async function initDashboard() {
             (x) =>
               `<tr><td class="strong">${esc(x.submissionId)}</td><td>${esc(x.startup?.name || x.founder?.name)}</td><td>${esc(x.package?.type)}</td><td>${money(x.package?.amount, x.package?.currency)}</td><td>${statusBadge(x.paymentStatus)}</td><td>${statusBadge(x.applicationStatus)}</td></tr>`,
           )
-          .join('') || `<tr><td colspan="6"><div class="empty">No paid applications yet.</div></td></tr>`
+          .join('') || `<tr><td colspan="6"><div class="empty">No applications found.</div></td></tr>`
       }
       </tbody></table></div></div></div></section>`;
     layout('Dashboard', 'dashboard', content);
   } catch (err) {
     toast(errorMessage(err));
+    layout(
+      'Dashboard',
+      'dashboard',
+      `<section class="content"><div class="head-row"><div><div class="eyebrow">Overview</div><h1>Dashboard</h1><div class="sub">Unable to load live totals</div></div></div><div class="panel"><div class="empty">${esc(errorMessage(err))}</div></div></section>`,
+    );
   }
 }
 
@@ -244,6 +249,10 @@ async function renderApplications() {
     document.getElementById('appCount').textContent = `Page ${data.page} of ${data.totalPages} · ${data.total} application(s)`;
   } catch (err) {
     toast(errorMessage(err));
+    const el = document.getElementById('appRows');
+    if (el) {
+      el.innerHTML = `<tr><td colspan="7"><div class="empty">${esc(errorMessage(err))}</div></td></tr>`;
+    }
   }
 }
 
@@ -370,10 +379,14 @@ async function renderPayments() {
           (x) =>
             `<tr><td class="strong">${esc(x.submissionId)}</td><td>${esc(x.applicant)}<div class="muted small">${esc(x.email)}</div></td><td class="strong">${money(x.amount, x.currency)}</td><td>${statusBadge(x.paymentStatus)}</td><td class="small">${esc(x.stripePaymentIntentId || x.applicationReference || '—')}</td><td class="small">${esc(x.paymentReceipt || '—')}</td><td>${esc(x.paidAt || '—')}</td></tr>`,
         )
-        .join('') || `<tr><td colspan="7"><div class="empty">No payment records.</div></td></tr>`;
+        .join('') || `<tr><td colspan="7"><div class="empty">No payments found.</div></td></tr>`;
     document.getElementById('payCount').textContent = `${data.total} record(s)`;
   } catch (err) {
     toast(errorMessage(err));
+    const el = document.getElementById('payRows');
+    if (el) {
+      el.innerHTML = `<tr><td colspan="7"><div class="empty">${esc(errorMessage(err))}</div></td></tr>`;
+    }
   }
 }
 
@@ -392,8 +405,14 @@ async function exportPayments() {
 
 async function initEvents() {
   if (!can('settings')) return initDashboard();
-  const { events } = await api.events();
-  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1><div class="sub">Conclave dates and venues</div></div>
+  layout(
+    'Events',
+    'events',
+    `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1><div class="sub">Loading…</div></div></div><div class="panel"><div class="empty">Loading events…</div></div></section>`,
+  );
+  try {
+    const { events } = await api.events();
+    const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1><div class="sub">Conclave dates and venues</div></div>
     <div class="actions"><button class="primary" onclick="openEventForm()">+ Add Event</button></div></div>
     <div class="panel"><div class="table-wrap"><table><thead><tr><th>Event</th><th>From</th><th>To</th><th>Venue</th><th>Applications</th><th>Status</th><th></th></tr></thead><tbody>
     ${
@@ -402,10 +421,18 @@ async function initEvents() {
           (x) =>
             `<tr><td class="strong">${esc(x.name)}</td><td>${esc(String(x.fromDate).slice(0, 10))}</td><td>${esc(String(x.toDate).slice(0, 10))}</td><td>${esc(x.venue)}</td><td>${x.applications}</td><td>${statusBadge(x.status)}</td><td><button class="mini" onclick='openEventForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeEvent('${x.id}')">Delete</button></td></tr>`,
         )
-        .join('') || `<tr><td colspan="7"><div class="empty">No events yet.</div></td></tr>`
+        .join('') || `<tr><td colspan="7"><div class="empty">No events found.</div></td></tr>`
     }
     </tbody></table></div></div></section>`;
-  layout('Events', 'events', content);
+    layout('Events', 'events', content);
+  } catch (err) {
+    toast(errorMessage(err));
+    layout(
+      'Events',
+      'events',
+      `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Events</h1></div></div><div class="panel"><div class="empty">${esc(errorMessage(err))}</div></div></section>`,
+    );
+  }
 }
 
 function openEventForm(x = {}) {
@@ -450,18 +477,34 @@ async function removeEvent(id) {
 
 async function initTypes() {
   if (!can('settings')) return initDashboard();
-  const { categories } = await api.categories();
-  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1><div class="sub">Application categories used by public registration</div></div>
+  layout(
+    'Types & Pricing',
+    'types',
+    `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1><div class="sub">Loading…</div></div></div><div class="panel"><div class="empty">Loading categories…</div></div></section>`,
+  );
+  try {
+    const { categories } = await api.categories();
+    const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1><div class="sub">Application categories used by public registration</div></div>
     <div class="actions"><button class="primary" onclick="openTypeForm()">+ Add Category</button></div></div>
     <div class="panel"><div class="table-wrap"><table><thead><tr><th>Category</th><th>Description</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
-    ${categories
-      .map(
-        (x) =>
-          `<tr><td class="strong">${esc(x.name)}</td><td class="muted">${esc(x.description)}</td><td>${money(x.amount, x.currency)}</td><td>${statusBadge(x.active ? 'Active' : 'Inactive')}</td><td><button class="mini" onclick='openTypeForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeType('${x.id}')">Delete</button></td></tr>`,
-      )
-      .join('')}
+    ${
+      categories
+        .map(
+          (x) =>
+            `<tr><td class="strong">${esc(x.name)}</td><td class="muted">${esc(x.description)}</td><td>${money(x.amount, x.currency)}</td><td>${statusBadge(x.active ? 'Active' : 'Inactive')}</td><td><button class="mini" onclick='openTypeForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeType('${x.id}')">Delete</button></td></tr>`,
+        )
+        .join('') || `<tr><td colspan="5"><div class="empty">No categories found.</div></td></tr>`
+    }
     </tbody></table></div></div></section>`;
-  layout('Types & Pricing', 'types', content);
+    layout('Types & Pricing', 'types', content);
+  } catch (err) {
+    toast(errorMessage(err));
+    layout(
+      'Types & Pricing',
+      'types',
+      `<section class="content"><div class="head-row"><div><div class="eyebrow">Configuration</div><h1>Types & Pricing</h1></div></div><div class="panel"><div class="empty">${esc(errorMessage(err))}</div></div></section>`,
+    );
+  }
 }
 
 function openTypeForm(x = {}) {
@@ -469,7 +512,7 @@ function openTypeForm(x = {}) {
     x.id ? 'Edit Category' : 'Add Category',
     `<form id="typeForm" class="form-grid">
       <div class="field"><label>Name</label><input class="input" name="name" value="${esc(x.name || '')}" required></div>
-      <div class="field"><label>Price</label><input class="input" type="number" min="1" step="0.01" name="amount" value="${x.amount ?? 99}" required></div>
+      <div class="field"><label>Price</label><input class="input" type="number" min="1" step="0.01" name="amount" value="${x.amount != null ? esc(x.amount) : ''}" required></div>
       <div class="field full"><label>Description</label><textarea name="description">${esc(x.description || '')}</textarea></div>
       <div class="field full"><label class="check"><input type="checkbox" name="active" ${x.active !== false ? 'checked' : ''}> Active</label></div>
     </form>`,
@@ -507,18 +550,34 @@ async function removeType(id) {
 
 async function initUsers() {
   if (!can('settings')) return initDashboard();
-  const { users } = await api.users();
-  const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1><div class="sub">Roles: administrator, reviewer, finance</div></div>
+  layout(
+    'Admin Users',
+    'users',
+    `<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1><div class="sub">Loading…</div></div></div><div class="panel"><div class="empty">Loading admin users…</div></div></section>`,
+  );
+  try {
+    const { users } = await api.users();
+    const content = `<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1><div class="sub">Roles: administrator, reviewer, finance</div></div>
     <div class="actions"><button class="primary" onclick="openUserForm()">+ Add Admin User</button></div></div>
     <div class="panel"><div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead><tbody>
-    ${users
-      .map(
-        (x) =>
-          `<tr><td><div class="person"><div class="person-avatar">${initials(x.name)}</div><div><strong>${esc(x.name)}</strong><span>${esc(x.email)}</span></div></div></td><td>${statusBadge(x.role)}</td><td>${statusBadge(x.status === 'active' ? 'Active' : 'Inactive')}</td><td>${esc(x.lastLoginAt || 'Never')}</td><td><button class="mini" onclick='openUserForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeUser('${x.id}')">Delete</button></td></tr>`,
-      )
-      .join('')}
+    ${
+      users
+        .map(
+          (x) =>
+            `<tr><td><div class="person"><div class="person-avatar">${initials(x.name)}</div><div><strong>${esc(x.name)}</strong><span>${esc(x.email)}</span></div></div></td><td>${statusBadge(x.role)}</td><td>${statusBadge(x.status === 'active' ? 'Active' : 'Inactive')}</td><td>${esc(x.lastLoginAt || 'Never')}</td><td><button class="mini" onclick='openUserForm(${JSON.stringify(x)})'>Edit</button><button class="mini danger-mini" onclick="removeUser('${x.id}')">Delete</button></td></tr>`,
+        )
+        .join('') || `<tr><td colspan="5"><div class="empty">No admin users found.</div></td></tr>`
+    }
     </tbody></table></div></div></section>`;
-  layout('Admin Users', 'users', content);
+    layout('Admin Users', 'users', content);
+  } catch (err) {
+    toast(errorMessage(err));
+    layout(
+      'Admin Users',
+      'users',
+      `<section class="content"><div class="head-row"><div><div class="eyebrow">Access Control</div><h1>Admin Users</h1></div></div><div class="panel"><div class="empty">${esc(errorMessage(err))}</div></div></section>`,
+    );
+  }
 }
 
 function openUserForm(x = {}) {
